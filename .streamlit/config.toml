@@ -1,0 +1,15 @@
+[theme]
+# Kid-friendly pastel theme 🌈 (matches style.css design tokens)
+primaryColor         = "#FF6FB5"   # warm pink — for buttons, accents
+backgroundColor      = "#FFF6E0"   # warm cream — page bg
+secondaryBackgroundColor = "#FFD6E7" # pastel pink — card backgrounds
+textColor            = "#2E2E2E"   # high-contrast dark ink
+
+[server]
+# Avoid hot-reload loops while HF models download on first run
+fileWatcherType = "none"
+# Larger upload limit so kids can share pictures from phones/cameras
+maxUploadSize = 25
+
+[browser]
+gatherUsageStats = false

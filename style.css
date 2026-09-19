@@ -1,0 +1,291 @@
+/* ==========================================================================
+   📖  StorySpark — kid-friendly storybook theme (ages 3–10)  🌈🦄
+   Hand-drawn-feeling icons + chunky rounded pastel buttons.
+   ========================================================================== */
+
+/* ---------- Design tokens (pastel palette) ---------- */
+:root {
+    --pink:        #ffd6e7;
+    --pink-strong: #ff8fc1;
+    --pink-deep:   #2d2d2d;          /* dark text on pastel — high contrast */
+    --mint:        #c6f0da;
+    --mint-strong: #6ce0ad;
+    --sky:         #cfe7f5;
+    --sky-strong:  #6fb8ff;
+    --peach:       #ffd9b6;
+    --peach-strong:#ffb86c;
+    --cream:       #fff6e0;
+    --ink:         #2d2d2d;
+    --ink-soft:    #5b5b5b;
+    --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    --btn-shadow:  0 6px 18px rgba(0, 0, 0, 0.12);
+    --card-radius: 24px;
+    --btn-radius:  999px;
+}
+
+/* ---------- Page-wide look ---------- */
+.stApp {
+    background:
+        radial-gradient(at top left,  var(--pink)  0, transparent 40%),
+        radial-gradient(at top right, var(--sky)   0, transparent 40%),
+        radial-gradient(at bottom,    var(--mint)  0, transparent 50%),
+        var(--cream);
+    background-attachment: fixed;
+    font-family: 'Quicksand', 'Nunito', 'Comic Sans MS', system-ui, sans-serif;
+    color: var(--ink);
+}
+
+/* ---------- Headings ---------- */
+h1, h2, h3, h4 {
+    font-family: 'Baloo 2', 'Comic Sans MS', cursive, sans-serif;
+    letter-spacing: 0.01em;
+    margin: 0.2rem 0 !important;
+}
+h1 { font-size: 2.1rem !important; }
+h2 { font-size: 1.45rem !important; }
+h3 { font-size: 1.18rem !important; }
+
+/* ---------- Hero banner ---------- */
+.hero {
+    text-align: center;
+    padding: 0.8rem 0.4rem 0.3rem;
+}
+.hero-title {
+    font-size: 3.2rem;
+    font-weight: 800;
+    background: linear-gradient(90deg,
+        var(--pink-strong), var(--peach-strong), var(--sky-strong), #b06bff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1;
+    margin: 0;
+}
+.hero-tag {
+    font-size: 1.05rem;
+    color: var(--ink-soft);
+    margin-top: 0.2rem;
+}
+
+/* ---------- Cards ---------- */
+.card {
+    background: rgba(255, 255, 255, 0.92);
+    border: 2px solid #fff;
+    border-radius: var(--card-radius);
+    padding: 1rem 1.2rem;
+    margin: 0.6rem 0;
+    box-shadow: var(--card-shadow);
+}
+.card.step-1 { background: linear-gradient(135deg, #fff 70%, var(--pink) 100%); }
+.card.step-2 { background: linear-gradient(135deg, #fff 70%, var(--mint) 100%); }
+.card.step-3 { background: linear-gradient(135deg, #fff 70%, var(--sky)  100%); }
+
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 0 0.2rem 0;
+    font-weight: 800;
+    font-size: 1.15rem;
+}
+.step-blurb {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    margin: 0 0 0.6rem 2.6rem;       /* indent past the numbered chip */
+}
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    background: var(--pink-strong);
+    color: #fff;
+    border-radius: 999px;
+    font-weight: 800;
+    box-shadow: 0 4px 10px rgba(255, 111, 181, 0.4);
+}
+.card.step-2 .step-number { background: var(--mint-strong); box-shadow: 0 4px 10px rgba(92, 217, 160, 0.4); }
+.card.step-3 .step-number { background: var(--sky-strong);  box-shadow: 0 4px 10px rgba(111, 184, 255, 0.4); }
+
+/* ---------- Section label (icon + text) used inside Step 3 ----- */
+/* (.section-label reserved for future use) */
+
+/* ---------- Image preview ---------- */
+.stImage img {
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
+    max-height: 32vh;
+    object-fit: contain;
+}
+.helper {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    margin: 0.3rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    background: #fff;
+    padding: 0.7rem 1rem;
+    border-radius: 14px;
+    border: 2px dashed var(--pink-strong);
+}
+
+/* =================================================================
+   BUTTONS — chunky, rounded, pastel fill, dark text, soft shadow.
+   ================================================================= */
+
+/* Primary "Make My Story" — large mint button */
+.stButton > button {
+    border-radius: var(--btn-radius) !important;
+    font-size: 1.2rem !important;
+    font-weight: 800 !important;
+    padding: 0.8rem 1.6rem !important;
+    color: var(--ink) !important;
+    border: 3px solid #fff !important;
+    background: linear-gradient(180deg, #fff 0%, var(--mint) 100%) !important;
+    box-shadow: var(--btn-shadow);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+    min-height: 58px;             /* chunky for small fingers */
+    width: 100%;
+    margin: 0.15rem 0 0.4rem;
+    letter-spacing: 0.01em;
+}
+.stButton > button:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 12px 28px rgba(108, 224, 173, 0.4);
+    filter: brightness(1.04);
+}
+.stButton > button:active {
+    transform: translateY(0) scale(0.99);
+}
+.stButton > button:focus-visible {
+    outline: 3px solid var(--peach-strong);
+    outline-offset: 2px;
+}
+.stButton > button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(0.4);
+    box-shadow: none;
+}
+
+/* Primary CTA: same chunky look but pops in pink */
+.stButton > button[kind="primary"] {
+    background: linear-gradient(180deg, #fff 0%, var(--pink-strong) 100%) !important;
+    color: #fff !important;
+}
+.stButton > button[kind="primary"]:hover {
+    box-shadow: 0 14px 32px rgba(255, 111, 181, 0.45);
+}
+
+/* Reset button (peer of primary, secondary action) */
+.stButton > button[key="reset_btn"] {
+    background: linear-gradient(180deg, #fff 0%, var(--peach) 100%) !important;
+}
+
+/* ---------- Download buttons ----------
+   Same chunky treatment but slightly slimmer (two sit side-by-side).
+*/
+.stDownloadButton > button {
+    border-radius: var(--btn-radius) !important;
+    font-size: 1.05rem !important;
+    font-weight: 800 !important;
+    padding: 0.7rem 1.2rem !important;
+    color: var(--ink) !important;
+    background: linear-gradient(180deg, #fff 0%, var(--sky) 100%) !important;
+    border: 3px solid #fff !important;
+    box-shadow: var(--btn-shadow);
+    min-height: 50px;
+    width: 100%;
+    margin: 0.2rem 0;
+}
+.stDownloadButton > button:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 10px 24px rgba(111, 184, 255, 0.4);
+    filter: brightness(1.04);
+}
+
+/* ---------- File uploader ----------
+   Make the drag-and-drop feel chunky + friendly.
+*/
+[data-testid="stFileUploader"] {
+    border: 3px dashed var(--pink-strong) !important;
+    border-radius: 16px !important;
+    padding: 0.7rem !important;
+    background: #fff !important;
+}
+[data-testid="stFileUploader"] section {
+    padding: 0.4rem !important;
+}
+[data-testid="stFileUploaderDropzone"] {
+    background: var(--pink) !important;
+    border-radius: 12px !important;
+    color: var(--ink) !important;
+    font-weight: 700 !important;
+}
+
+/* ---------- Toggle ---------- */
+.stToggle label {
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+    color: var(--ink) !important;
+}
+
+/* ---------- Audio player — boxed, prominent ---------- */
+.stAudio {
+    border: 3px solid var(--sky-strong);
+    border-radius: 16px;
+    padding: 0.6rem;
+    background: var(--sky);
+    box-shadow: 0 8px 22px rgba(111, 184, 255, 0.30);
+    margin: 0.5rem 0 1rem;
+}
+.stAudio audio { width: 100%; border-radius: 12px; }
+
+/* ---------- Storybook "page" ---------- */
+.storybook-page {
+    background: var(--cream);
+    border: 4px solid transparent;
+    background-image:
+        linear-gradient(var(--cream), var(--cream)),
+        linear-gradient(135deg, var(--pink-strong), var(--peach-strong), var(--mint-strong), var(--sky-strong));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    border-radius: 22px;
+    padding: 1.4rem 1.6rem;
+    margin: 0.6rem 0;
+    box-shadow: var(--card-shadow);
+    font-family: 'Baloo 2', 'Comic Sans MS', system-ui, sans-serif;
+    font-size: 1.3rem;
+    line-height: 1.7;
+    color: var(--ink);
+}
+.storybook-page .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: var(--pink);
+    color: var(--pink-deep);
+    padding: 0.25rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+}
+
+/* ---------- Hide Streamlit chrome (claws back ~56 vh) ---------- */
+header[data-testid="stHeader"] { display: none; }
+footer, [data-testid="stToolbar"], [data-testid="stDecoration"] { visibility: hidden; }
+.main .block-container {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    max-width: 880px;
+}
+
+/* ---------- Responsive: mobile ---------- */
+@media (max-width: 700px) {
+    .hero-title { font-size: 2.4rem; }
+    .card { padding: 0.8rem 1rem; }
+    .storybook-page { padding: 1.1rem 1.2rem; font-size: 1.15rem; }
+    .step-blurb { margin-left: 2.3rem; }
+}

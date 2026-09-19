@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Hugging Face model cache (huge)
+# On Streamlit Cloud this lives under ~/.cache and is fine to keep locally too,
+# but it should never be committed.
+.huggingface_cache/
+
+# Misc
+.DS_Store
+*.log

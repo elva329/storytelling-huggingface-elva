@@ -383,6 +383,19 @@ with page_l:
         image = Image.open(uploaded)
         st.image(image, use_container_width=True)
 
+        if st.session_state.phase == "working":
+            st.markdown(
+                """
+<style>
+[data-testid="stFileUploader"] {
+    pointer-events: none;
+    opacity: 0.55;
+}
+</style>
+""",
+                unsafe_allow_html=True,
+            )
+
         # Disabled while the pipeline is running so the child can't spam it.
         make_story = st.button(
             "Make My Story!",

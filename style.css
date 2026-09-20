@@ -181,14 +181,14 @@ section.main > div.block-container {
 }
 
 /* =================================================================
-   FILE UPLOADER
-   ================================================================= */
+    FILE UPLOADER
+    ================================================================= */
 [data-testid="stFileUploader"] {
     border: 4px dashed var(--coral) !important;
     border-radius: 24px !important;
     padding: 0.5rem !important;
     background: linear-gradient(135deg, #fff5f8 0%, #ffe8f0 100%) !important;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.3s ease;
 }
 [data-testid="stFileUploader"]:hover {
     transform: translateY(-2px);
@@ -217,6 +217,27 @@ section.main > div.block-container {
 [data-testid="stFileUploaderDropzone"] button:hover {
     background: var(--coral-dark) !important;
     transform: translateY(-1px);
+}
+
+/* File uploader disabled during story generation */
+[data-testid="stFileUploader"][data-disabled="true"],
+.column-left-working [data-testid="stFileUploader"] {
+    opacity: 0.5 !important;
+    pointer-events: none !important;
+    border-color: var(--ink-soft) !important;
+    background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%) !important;
+}
+[data-testid="stFileUploader"][data-disabled="true"] [data-testid="stFileUploaderDropzone"] button,
+.column-left-working [data-testid="stFileUploaderDropzone"] button {
+    background: #ccc !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+}
+[data-testid="stFileUploader"][data-disabled="true"] [data-testid="stFileUploaderDropzone"] button:hover,
+.column-left-working [data-testid="stFileUploaderDropzone"] button:hover {
+    background: #ccc !important;
+    transform: none !important;
 }
 
 /* =================================================================

@@ -157,7 +157,7 @@ _STORY_PROMPTS = {
 
 def text2story(text):
     """Caption → story (50–100 words, bedtime style, kid-friendly,
-    NO emojis in the output)."""
+    NO emojis and NO quotes in the output)."""
     story_gen, model_id = _get_story_pipeline()
     template = _STORY_PROMPTS.get(
         model_id, _STORY_PROMPTS[FALLBACK_STORY_MODEL])
@@ -185,7 +185,8 @@ def text2story(text):
         generated = generated[len(prompt):]
 
     generated = re.sub(r"\s+", " ", generated).strip()
-    generated = _strip_emojis(generated)          # strip early
+    # strip early (emojis + quotes)
+    generated = _strip_emojis(generated)
     generated = _repair_story_end(generated)
     generated = _truncate_to_word_count(generated, low=50, high=100)
     generated = _strip_emojis(generated)          # strip final
@@ -194,8 +195,8 @@ def text2story(text):
 
 
 def text2audio(story_text):
-    """Story text → MP3 audio bytes. Emojis are stripped so the voice
-    never tries to pronounce them."""
+    """Story text → MP3 audio bytes. Emojis and quotes are stripped so
+    the voice never tries to pronounce them."""
     if not story_text:
         return b""
 
@@ -241,15 +242,30 @@ _EMOJI_RE = re.compile(
     flags=re.UNICODE,
 )
 
+# Double quotes (straight + curly) and backticks. Apostrophes (') are
+# NOT in this class — we want to preserve contractions like "it's".
+_QUOTE_RE = re.compile(r'["“”„«»`]')
+
 
 def _strip_emojis(text: str) -> str:
-    """Remove all emoji characters and tidy up the resulting spacing."""
+    """Remove emojis, quotes, and other characters that gTTS would
+    pronounce awkwardly. Tidy up the resulting spacing."""
     if not text:
         return text
+
+    # 1. Remove emojis
     cleaned = _EMOJI_RE.sub("", text)
-    # Collapse any double spaces left behind, and trim around punctuation.
+
+    # 2. Remove straight/curly double quotes and backticks
+    cleaned = _QUOTE_RE.sub("", cleaned)
+
+    # 3. Collapse double spaces + trim spacing around punctuation
     cleaned = re.sub(r"\s{2,}", " ", cleaned)
     cleaned = re.sub(r"\s+([.,!?;:])", r"\1", cleaned)
+
+    # 4. Ensure a space after a colon/comma when it was glued to a word
+    cleaned = re.sub(r"([,;:])(?=[A-Za-z])", r"\1 ", cleaned)
+
     return cleaned.strip()
 
 

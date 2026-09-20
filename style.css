@@ -30,6 +30,7 @@
         radial-gradient(ellipse 55% 45% at 88% 90%, #ffefc2 0, transparent 60%),
         linear-gradient(180deg, #fff8ec 0%, #fff4e4 100%);
     background-attachment: fixed;
+    background-color: transparent;
     font-family: 'Baloo 2', 'Fredoka', 'Comic Sans MS', system-ui, sans-serif;
     color: var(--ink);
 }

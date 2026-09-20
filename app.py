@@ -156,7 +156,8 @@ _STORY_PROMPTS = {
 
 
 def text2story(text):
-    """Caption → story (50–100 words, bedtime style, kid-friendly)."""
+    """Caption → story (50–100 words, bedtime style, kid-friendly,
+    NO emojis in the output)."""
     story_gen, model_id = _get_story_pipeline()
     template = _STORY_PROMPTS.get(
         model_id, _STORY_PROMPTS[FALLBACK_STORY_MODEL])
@@ -184,17 +185,25 @@ def text2story(text):
         generated = generated[len(prompt):]
 
     generated = re.sub(r"\s+", " ", generated).strip()
+    generated = _strip_emojis(generated)          # strip early
     generated = _repair_story_end(generated)
     generated = _truncate_to_word_count(generated, low=50, high=100)
+    generated = _strip_emojis(generated)          # strip final
 
     return generated
 
 
 def text2audio(story_text):
-    """Story text → MP3 audio bytes."""
+    """Story text → MP3 audio bytes. Emojis are stripped so the voice
+    never tries to pronounce them."""
     if not story_text:
         return b""
-    tts = gTTS(text=story_text, lang="en")
+
+    clean_text = _strip_emojis(story_text)
+    if not clean_text:
+        return b""
+
+    tts = gTTS(text=clean_text, lang="en")
     buf = io.BytesIO()
     tts.write_to_fp(buf)
     buf.seek(0)
@@ -206,7 +215,42 @@ def text2audio(story_text):
 # =============================================================================
 
 _LEADING_ARTICLES = {"a", "an", "the"}
-_HAPPY_ENDING = " And they all lived happily ever after. 🌈"
+_HAPPY_ENDING = " And they all lived happily ever after."
+
+# Matches most emoji codepoints: pictographs, symbols, dingbats,
+# variation selectors, ZWJ sequences, and skin-tone modifiers.
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F300-\U0001F5FF"   # Symbols & Pictographs
+    "\U0001F600-\U0001F64F"   # Emoticons
+    "\U0001F680-\U0001F6FF"   # Transport & Map
+    "\U0001F700-\U0001F77F"   # Alchemical
+    "\U0001F780-\U0001F7FF"   # Geometric Shapes Extended
+    "\U0001F800-\U0001F8FF"   # Supplemental Arrows-C
+    "\U0001F900-\U0001F9FF"   # Supplemental Symbols & Pictographs
+    "\U0001FA00-\U0001FA6F"   # Chess
+    "\U0001FA70-\U0001FAFF"   # Symbols & Pictographs Extended-A
+    "\U00002600-\U000026FF"   # Misc symbols
+    "\U00002700-\U000027BF"   # Dingbats
+    "\U0001F1E6-\U0001F1FF"   # Regional Indicator (flags)
+    "\U0000FE00-\U0000FE0F"   # Variation Selectors
+    "\U0001F3FB-\U0001F3FF"   # Skin tone modifiers
+    "\U0000200D"              # ZWJ
+    "\U00002B00-\U00002BFF"   # Misc Symbols and Arrows
+    "]+",
+    flags=re.UNICODE,
+)
+
+
+def _strip_emojis(text: str) -> str:
+    """Remove all emoji characters and tidy up the resulting spacing."""
+    if not text:
+        return text
+    cleaned = _EMOJI_RE.sub("", text)
+    # Collapse any double spaces left behind, and trim around punctuation.
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    cleaned = re.sub(r"\s+([.,!?;:])", r"\1", cleaned)
+    return cleaned.strip()
 
 
 def _extract_subject(caption: str) -> str:
@@ -361,7 +405,7 @@ with page_l:
             "Make My Story!",
             type="primary",
             use_container_width=True,
-            help="Say the magic words ✨",
+            help="Tap to make a story from your picture ✨",
             key="make_story_btn",
             disabled=(st.session_state.phase == "working"),
         )
@@ -409,8 +453,8 @@ with page_l:
     <div class="quest-badge">{_badge_text(2)}</div>
     <div class="quest-icon">✨</div>
     <div class="quest-text">
-      <div class="quest-title">Say the magic words</div>
-      <div class="quest-sub">Press the big pink button</div>
+      <div class="quest-title">Make my story</div>
+      <div class="quest-sub">Tap the big pink button</div>
     </div>
   </div>
 
@@ -571,7 +615,7 @@ with page_r:
     <span class="guide-ask">
       I'm Ollie the Story Owl 🦉<br>
       Show me a picture and I'll<br>
-      whisper a tale just for you…
+      tell you a tale just for you…
     </span>
   </div>
 

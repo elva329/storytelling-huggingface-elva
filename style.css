@@ -112,20 +112,29 @@ section[data-testid="stColumn"] {
 
 /* =================================================================
    FLOATING BACKGROUND EMOJI
+   -----------------------------------------------------------------
+   Scene sits ABOVE the page background but BELOW the two page
+   cards & title. We use z-index 0 here and lift the cards to
+   z-index 1, title to z-index 2, so the balloons and unicorn
+   peek out from behind the pages.
    ================================================================= */
 .scene {
     position: fixed;
     inset: 0;
+    width: 100vw;
+    height: 100vh;
     pointer-events: none;
-    z-index: -1;
+    z-index: 0;                /* above background, below cards */
     overflow: hidden;
 }
 .float {
     position: absolute;
     font-size: 3rem;
-    opacity: 0.55;
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.06));
+    line-height: 1;
+    opacity: 0.65;             /* a touch more visible than before */
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.08));
     animation: drift 9s ease-in-out infinite;
+    will-change: transform;
 }
 .f1 { top: 6%;     left: 3%;   animation-delay: 0s;   font-size: 3.4rem; }
 .f2 { top: 12%;    right: 4%;  animation-delay: 1.2s; font-size: 2.6rem; }

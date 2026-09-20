@@ -503,7 +503,7 @@ with page_r:
             audio_b64 = ""
         story_url = quote(story, safe="")
 
-        c1, c2, c3 = st.columns(3, gap="small")
+        c1, c2 = st.columns(2, gap="small")
         with c1:
             st.markdown(
                 f'<div class="ss-dl-cell">'
@@ -524,22 +524,6 @@ with page_r:
                 f'</div>',
                 unsafe_allow_html=True,
             )
-        with c3:
-            if st.button(
-                "One more story!",
-                key="reset_btn",
-                use_container_width=False,
-            ):
-                for k, v in (
-                    ("story", ""),
-                    ("audio_bytes", b""),
-                    ("caption", ""),
-                    ("celebrated", False),
-                    ("phase", "idle"),
-                    ("progress_step", 0),
-                ):
-                    st.session_state[k] = v
-                st.rerun()
 
     # -------- State C : nothing yet → friendly empty state -----------
     else:

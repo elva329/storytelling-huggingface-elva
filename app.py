@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import io
 import re
-import time
 import urllib.request
 from io import BytesIO
 from pathlib import Path
@@ -197,21 +196,6 @@ def text2audio(story_text):
     return buf.read()
 
 
-def _resolve_pad_token_id(pipe) -> int:
-    """Safe pad_token_id for generation across tokenizer variants."""
-    tok = getattr(pipe, "tokenizer", None)
-    for attr in ("pad_token_id", "eos_token_id"):
-        val = getattr(tok, attr, None)
-        if isinstance(val, int):
-            return val
-    cfg = getattr(getattr(pipe, "model", None), "config", None)
-    if cfg is not None:
-        cfg_eos = getattr(cfg, "eos_token_id", None)
-        if isinstance(cfg_eos, int):
-            return cfg_eos
-    return 0
-
-
 # =============================================================================
 # 3a. SMALL TEXT HELPERS
 # =============================================================================
@@ -279,6 +263,8 @@ for _key, _default in (
     ("audio_bytes", b""),
     ("caption", ""),
     ("celebrated", False),
+    ("phase", "idle"),          # idle | working | done
+    ("progress_step", 0),       # 0..3 → which loader stage we're on
 ):
     st.session_state.setdefault(_key, _default)
 
@@ -305,17 +291,18 @@ with page_l:
         key="uploaded_image",
     )
 
-    # ---- Only show the image + toggle + button once a picture is picked ----
     if uploaded is not None:
         image = Image.open(uploaded)
         st.image(image, use_container_width=True)
 
+        # Disabled while the pipeline is running so the child can't spam it.
         make_story = st.button(
             "Make My Story!",
             type="primary",
             use_container_width=True,
             help="Make some magic ✨",
             key="make_story_btn",
+            disabled=(st.session_state.phase == "working"),
         )
     else:
         image = None
@@ -329,13 +316,50 @@ with page_l:
         )
 
 # =============================================================================
-#  RIGHT PAGE — Story
+#  RIGHT PAGE — Story OR inline loader OR empty state
 # =============================================================================
 with page_r:
     story = st.session_state.story
     audio_bytes = st.session_state.audio_bytes
+    phase = st.session_state.phase
+    step = st.session_state.progress_step
 
-    if story:
+    # -------- State A : pipeline running → inline turning-book loader ----
+    if phase == "working":
+        _LOADER_STEPS = [
+            ("🔎", 0.15, "Looking at your picture"),
+            ("📖", 0.45, "Writing your story"),
+            ("🎤", 0.80, "Recording the voice"),
+            ("✅", 1.00, "All done!"),
+        ]
+        emoji, pct, note = _LOADER_STEPS[min(step, 3)]
+
+        st.markdown(
+            f"""
+<div class="progress-inline">
+  <div class="turning-book" aria-hidden="true">
+    <div class="base">
+      <div class="left"></div>
+      <div class="right"></div>
+    </div>
+    <div class="spine"></div>
+    <div class="page">
+      <span class="line l1"></span><span class="line l2"></span>
+      <span class="line l3"></span><span class="line l4"></span>
+    </div>
+  </div>
+  <div class="progress-emoji">{emoji}</div>
+  <div class="progress-bar">
+    <div class="progress-fill" style="width:{pct*100:.0f}%"></div>
+  </div>
+  <div class="progress-text">{note}</div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+    # -------- State B : story ready → show it -------------------------
+    elif story:
         if not st.session_state.celebrated:
             st.balloons()
             st.session_state.celebrated = True
@@ -354,9 +378,6 @@ with page_r:
 
         st.audio(audio_bytes, format="audio/mp3")
 
-        # Three action buttons in one row, each sized to fit its label
-        # + icon (no min-width). See .stDownloadButton and the
-        # .st-key-reset_btn rules in style.css.
         c1, c2, c3 = st.columns(3, gap="small")
         with c1:
             st.download_button(
@@ -387,14 +408,16 @@ with page_r:
                     ("audio_bytes", b""),
                     ("caption", ""),
                     ("celebrated", False),
+                    ("phase", "idle"),
+                    ("progress_step", 0),
                 ):
                     st.session_state[k] = v
                 st.rerun()
+
         # JS shim: stamp the two stDownloadButton wrappers with
-        # data-hook="dl_mp3" / "dl_txt" so the CSS in style.css can target
-        # each one. Runs on a MutationObserver so it survives Streamlit
-        # re-renders. Injected via st.html (raw HTML in the main DOM —
-        # unlike components.v1.html, which sandboxes scripts in an iframe).
+        # data-hook="dl_mp3" / "dl_txt" so the CSS in style.css can
+        # target each one. Runs on a MutationObserver so it survives
+        # Streamlit re-renders.
         st.html(
             """<script>
             (function () {
@@ -416,6 +439,7 @@ with page_r:
             unsafe_allow_javascript=True,
         )
 
+    # -------- State C : nothing yet → friendly empty state -----------
     else:
         st.markdown(
             '<div class="page-empty">'
@@ -430,42 +454,35 @@ with page_r:
         )
 
 # =============================================================================
-# 6. MAIN PIPELINE — custom on-theme progress overlay
+# 6. MAIN PIPELINE — two-phase state machine
+#    Phase 1: user clicks → phase="working", rerun (loader appears)
+#    Phase 2: loader is on screen → run pipeline → phase="done", rerun
 # =============================================================================
-if make_story and uploaded is not None:
-    progress_slot = st.empty()
+if make_story and uploaded is not None and st.session_state.phase == "idle":
+    # Kick off: flip to "working" so the next paint shows the loader.
+    st.session_state.phase = "working"
+    st.session_state.progress_step = 0
+    st.rerun()
 
-    def _show_progress(emoji: str, pct: float, note: str) -> None:
-        """Render an on-theme progress card in a placeholder."""
-        progress_slot.markdown(
-            f"""
-<div class="progress-card">
-  <div class="progress-emoji">{emoji}</div>
-  <div class="progress-bar">
-    <div class="progress-fill" style="width:{pct*100:.0f}%"></div>
-  </div>
-  <div class="progress-text">{note}</div>
-</div>
-""",
-            unsafe_allow_html=True,
-        )
+if st.session_state.phase == "working" and uploaded is not None:
+    # Re-open the uploaded image for this run (UploadedFile is streamable).
+    working_image = Image.open(uploaded)
 
     try:
-        _show_progress("🔎", 0.15, "Looking at your picture…")
-        caption = img2text(image)
+        st.session_state.progress_step = 0   # 🔎 Looking…
+        caption = img2text(working_image)
 
-        _show_progress("📖", 0.45, "Writing your story…")
+        st.session_state.progress_step = 1   # 📖 Writing…
         story = text2story(caption)
 
-        _show_progress("🎤", 0.80, "Recording the voice…")
+        st.session_state.progress_step = 2   # 🎤 Recording…
         audio_bytes = text2audio(story)
 
-        _show_progress("✅", 1.00, "All done!")
-        time.sleep(0.4)
-        progress_slot.empty()
+        st.session_state.progress_step = 3   # ✅ Done
 
     except Exception as exc:
-        progress_slot.empty()
+        st.session_state.phase = "idle"
+        st.session_state.progress_step = 0
         st.error(f"😢 Oops! Something went wrong: {exc}")
         story, audio_bytes, caption = "", b"", ""
 
@@ -473,6 +490,8 @@ if make_story and uploaded is not None:
     st.session_state.audio_bytes = audio_bytes
     st.session_state.caption = caption
     st.session_state.celebrated = False
+    st.session_state.phase = "done" if story else "idle"
+    st.session_state.progress_step = 0
     st.rerun()
 
 # =============================================================================

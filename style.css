@@ -40,7 +40,7 @@
 .main .block-container,
 [data-testid="stAppViewContainer"] .block-container,
 section.main > div.block-container {
-    max-width: 100% !important;
+    max-width: 1320px !important;
     width: 100% !important;
     padding: 0.1rem 2rem 0.2rem 2rem !important;
     margin: 0 auto !important;
@@ -869,7 +869,7 @@ button[kind="primary"]:disabled::before {
     font-weight: 600;
     color: var(--ink-soft);
     line-height: 1.5;
-    max-width: 24rem;
+    max-width: 26rem;
     margin: 0 auto;
 }
 

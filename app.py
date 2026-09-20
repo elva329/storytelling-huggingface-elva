@@ -28,12 +28,14 @@
 
 from __future__ import annotations
 
+import base64
 import io
 import re
 import urllib.request
 from io import BytesIO
 from pathlib import Path
 from typing import Any, cast
+from urllib.parse import quote
 
 import streamlit as st
 from PIL import Image
@@ -475,24 +477,38 @@ with page_r:
 
         st.audio(audio_bytes, format="audio/mp3")
 
+        # --- Download buttons ---------------------------------------------
+        # Use raw <a download> links (NOT st.download_button) so that
+        # clicking them does NOT trigger a Streamlit script rerun.
+        # Streamlit's download_button is a widget — any click causes a
+        # rerun, which re-mounts st.audio and resets playback mid-story.
+        # Native HTML <a download> just hands the file to the browser.
+        if audio_bytes:
+            audio_b64 = base64.b64encode(audio_bytes).decode("ascii")
+        else:
+            audio_b64 = ""
+        story_url = quote(story, safe="")
+
         c1, c2, c3 = st.columns(3, gap="small")
         with c1:
-            st.download_button(
-                "Save the voice",
-                data=audio_bytes,
-                file_name="storyspark_story.mp3",
-                mime="audio/mp3",
-                use_container_width=False,
-                key="dl_mp3",
+            st.markdown(
+                f'<div class="ss-dl-cell">'
+                f'<a class="ss-dl-link ss-dl-voice" '
+                f'href="data:audio/mp3;base64,{audio_b64}" '
+                f'download="storyspark_story.mp3">'
+                f'Save the voice</a>'
+                f'</div>',
+                unsafe_allow_html=True,
             )
         with c2:
-            st.download_button(
-                "Save the story",
-                data=story.encode("utf-8"),
-                file_name="storyspark_story.txt",
-                mime="text/plain",
-                use_container_width=False,
-                key="dl_txt",
+            st.markdown(
+                f'<div class="ss-dl-cell">'
+                f'<a class="ss-dl-link ss-dl-story" '
+                f'href="data:text/plain;charset=utf-8,{story_url}" '
+                f'download="storyspark_story.txt">'
+                f'Save the story</a>'
+                f'</div>',
+                unsafe_allow_html=True,
             )
         with c3:
             if st.button(
@@ -510,31 +526,6 @@ with page_r:
                 ):
                     st.session_state[k] = v
                 st.rerun()
-
-        # JS shim: stamp the two stDownloadButton wrappers with
-        # data-hook="dl_mp3" / "dl_txt" so the CSS in style.css can
-        # target each one. Runs on a MutationObserver so it survives
-        # Streamlit re-renders.
-        st.html(
-            """<script>
-            (function () {
-              function stamp() {
-                var btns = document.querySelectorAll(
-                  '[data-testid="stDownloadButton"]:not([data-hook])'
-                );
-                var hooks = ['dl_mp3', 'dl_txt'];
-                btns.forEach(function (b, i) {
-                  if (i < hooks.length) b.setAttribute('data-hook', hooks[i]);
-                });
-              }
-              stamp();
-              new MutationObserver(stamp).observe(document.body, {
-                childList: true, subtree: true,
-              });
-            })();
-            </script>""",
-            unsafe_allow_javascript=True,
-        )
 
     # -------- State C : nothing yet → friendly empty state -----------
     else:

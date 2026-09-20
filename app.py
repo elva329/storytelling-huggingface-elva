@@ -354,29 +354,42 @@ with page_r:
 
         st.audio(audio_bytes, format="audio/mp3")
 
-        # The two download buttons are styled by [style.css] via a
-        # `data-hook` attribute that a tiny JS shim stamps onto each
-        # wrapper in document order. Streamlit does NOT expose `key=` on
-        # the DOM, so we inject the hook client-side.
-        dl1, dl2 = st.columns(2)
-        with dl1:
+        # Three action buttons in one row, each sized to fit its label
+        # + icon (no min-width). See .stDownloadButton and the
+        # .st-key-reset_btn rules in style.css.
+        c1, c2, c3 = st.columns(3, gap="small")
+        with c1:
             st.download_button(
                 "Save the voice",
                 data=audio_bytes,
                 file_name="storyspark_story.mp3",
                 mime="audio/mp3",
-                use_container_width=True,
+                use_container_width=False,
                 key="dl_mp3",
             )
-        with dl2:
+        with c2:
             st.download_button(
                 "Save the story",
                 data=story.encode("utf-8"),
                 file_name="storyspark_story.txt",
                 mime="text/plain",
-                use_container_width=True,
+                use_container_width=False,
                 key="dl_txt",
             )
+        with c3:
+            if st.button(
+                "One more story!",
+                key="reset_btn",
+                use_container_width=False,
+            ):
+                for k, v in (
+                    ("story", ""),
+                    ("audio_bytes", b""),
+                    ("caption", ""),
+                    ("celebrated", False),
+                ):
+                    st.session_state[k] = v
+                st.rerun()
         # JS shim: stamp the two stDownloadButton wrappers with
         # data-hook="dl_mp3" / "dl_txt" so the CSS in style.css can target
         # each one. Runs on a MutationObserver so it survives Streamlit
@@ -402,20 +415,6 @@ with page_r:
             </script>""",
             unsafe_allow_javascript=True,
         )
-
-        if st.button(
-            "One more story!",
-            key="reset_btn",
-            use_container_width=True,
-        ):
-            for k, v in (
-                ("story", ""),
-                ("audio_bytes", b""),
-                ("caption", ""),
-                ("celebrated", False),
-            ):
-                st.session_state[k] = v
-            st.rerun()
 
     else:
         st.markdown(

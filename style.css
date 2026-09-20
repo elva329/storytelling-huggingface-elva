@@ -408,30 +408,98 @@ button[kind="primary"]:disabled::before {
    DOWNLOAD BUTTONS — sky blue (voice) & coral (story), compact
    ================================================================= */
 
-/* (Layout is handled by st.columns(2) in app.py — no extra flex needed.) */
+/* Centered control panel that holds all three action buttons.
+   The .btn-panel wrapper is an empty <div> injected by app.py just
+   before the two download rows; the two rows immediately following
+   it are centered via the column spacers in app.py. We just give the
+   buttons a unified chrome here. */
+
+/* The Streamlit element wrappers that hold each download button stay
+   at their column's natural width — the buttons inside shrink to
+   fit their own label + icon (width: auto). We force a min-width
+   on the wrapper so Streamlit's flex layout doesn't collapse the
+   inner text — without it, all three columns shrink to the icon's
+   width and the label gets clipped. */
+[class*="st-key-dl_mp3"], [class*="st-key-dl_txt"], [class*="st-key-reset_btn"] {
+    align-self: stretch !important;
+    width: 100% !important;
+    min-width: 155px !important;
+    flex-shrink: 0 !important;
+}
 
 /* Base style for ALL download buttons (chrome only — colors set below) */
+[data-testid="stDownloadButton"] {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
 [data-testid="stDownloadButton"] > button {
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
-    font-size: 0.98rem !important;
+    font-size: 0.95rem !important;
     font-weight: 800 !important;
     letter-spacing: 0.01em !important;
     color: #fff !important;
     border: 3px solid #fff !important;
     border-radius: 999px !important;
-    min-height: 46px !important;
-    height: 46px !important;
+    min-height: 44px !important;
+    height: 44px !important;
     padding: 0 1rem 0 0.6rem !important;
-    width: 100%;
-    margin: 0.15rem 0;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0.15rem auto !important;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 0.5rem !important;
+    gap: 0.45rem !important;
     transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
     background-image: none !important;
     background-color: transparent !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+}
+
+/* Streamlit wraps the button label in a wrapper div that has
+   overflow:hidden + display:block. That clips the text inside to
+   the icon's width when the button is `width: auto`. Make the
+   wrapper flow as-is so the full label is visible. */
+[data-testid="stDownloadButton"] > button > [class*="st-emotion-cache"],
+[data-testid="stDownloadButton"] > button > div,
+[data-testid="stDownloadButton"] > button > span,
+[data-testid="stDownloadButton"] > button > div > span,
+[data-testid="stDownloadButton"] > button > div > div {
+    display: inline-flex !important;
+    align-items: center !important;
+    overflow: visible !important;
+    width: auto !important;
+    max-width: none !important;
+}
+[data-testid="stDownloadButton"] > button p {
+    display: inline !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+    margin: 0 !important;
+}
+
+/* Same fix for the regular st.button (reset button). */
+[class*="st-key-reset_btn"] button > [class*="st-emotion-cache"],
+[class*="st-key-reset_btn"] button > div,
+[class*="st-key-reset_btn"] button > span,
+[class*="st-key-reset_btn"] button > div > span,
+[class*="st-key-reset_btn"] button > div > div {
+    display: inline-flex !important;
+    align-items: center !important;
+    overflow: visible !important;
+    width: auto !important;
+    max-width: none !important;
+}
+[class*="st-key-reset_btn"] button p {
+    display: inline !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+    margin: 0 !important;
 }
 
 /* Icon badge: shared base */
@@ -489,28 +557,40 @@ button[kind="primary"]:disabled::before {
 /* =================================================================
    RESET BUTTON ("One more story!") — mint green + refresh icon
    ================================================================= */
+[class*="st-key-reset_btn"] .stButton,
+[class*="st-key-reset_btn"] {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
+[class*="st-key-reset_btn"] .stButton > button,
 .stButton > button[key="reset_btn"] {
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
-    font-size: 0.98rem !important;
+    font-size: 0.95rem !important;
     font-weight: 800 !important;
     letter-spacing: 0.01em !important;
     color: #fff !important;
     border: 3px solid #fff !important;
     border-radius: 999px !important;
-    min-height: 46px !important;
-    height: 46px !important;
+    min-height: 44px !important;
+    height: 44px !important;
     padding: 0 1rem 0 0.6rem !important;
-    width: 100%;
-    margin: 0.35rem 0 0.15rem;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0.15rem auto !important;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 0.5rem !important;
+    gap: 0.45rem !important;
     background: linear-gradient(180deg, #6fe0a6 0%, #2ea36f 100%) !important;
     box-shadow: 0 3px 0 #1e7f53, 0 6px 12px rgba(94, 217, 154, 0.32) !important;
     transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+    white-space: nowrap !important;
 }
+[class*="st-key-reset_btn"] .stButton > button::before,
 .stButton > button[key="reset_btn"]::before {
     content: "" !important;
     display: inline-block !important;
@@ -525,12 +605,14 @@ button[kind="primary"]:disabled::before {
     flex: 0 0 auto !important;
     box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45);
 }
-.stButton > button[key="reset_btn"]:hover {
+.stButton > button[key="reset_btn"]:hover,
+[class*="st-key-reset_btn"] .stButton > button:hover {
     transform: translateY(-1px);
     filter: brightness(1.05);
     box-shadow: 0 5px 0 #1e7f53, 0 9px 16px rgba(94, 217, 154, 0.42) !important;
 }
-.stButton > button[key="reset_btn"]:active {
+.stButton > button[key="reset_btn"]:active,
+[class*="st-key-reset_btn"] .stButton > button:active {
     transform: translateY(2px);
     box-shadow: 0 1px 0 #1e7f53, 0 3px 6px rgba(94, 217, 154, 0.35) !important;
 }

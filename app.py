@@ -156,18 +156,7 @@ _STORY_PROMPTS = {
 
 
 def text2story(text):
-    """Caption → story (50–120 words, bedtime style, kid-friendly).
-
-    Notes
-    -----
-    * We deliberately DO NOT pass ``pad_token_id`` — for TinyStories-33M the
-      tokenizer has no dedicated pad token, and passing ``eos_token_id`` as
-      pad makes the model stop the moment it emits EOS (mid-sentence).
-    * ``max_new_tokens`` is raised to 160 so the model has room to reach a
-      natural sentence end.
-    * Post-processing repairs ragged endings (missing punctuation, dangling
-      articles, single trailing letters like "A.").
-    """
+    """Caption → story (50–100 words, bedtime style, kid-friendly)."""
     story_gen, model_id = _get_story_pipeline()
     template = _STORY_PROMPTS.get(
         model_id, _STORY_PROMPTS[FALLBACK_STORY_MODEL])
@@ -175,7 +164,6 @@ def text2story(text):
     subject = _extract_subject(text)
     prompt = template.format(subject=subject)
 
-    # --- 1. Generate ---
     gen_kwargs: dict[str, Any] = {
         "max_new_tokens": 160,
         "do_sample": True,
@@ -185,7 +173,6 @@ def text2story(text):
         "repetition_penalty": 1.15,
         "no_repeat_ngram_size": 3,
     }
-    # Only pass pad_token_id when the tokenizer actually has a pad token.
     tok = getattr(story_gen, "tokenizer", None)
     if tok is not None and getattr(tok, "pad_token_id", None) is not None:
         gen_kwargs["pad_token_id"] = tok.pad_token_id
@@ -193,18 +180,11 @@ def text2story(text):
     outputs: list[Any] = story_gen(prompt, **gen_kwargs)
     generated = str(outputs[0].get("generated_text", ""))
 
-    # --- 2. Strip the prompt echo ---
     if prompt and generated.startswith(prompt):
         generated = generated[len(prompt):]
 
-    # --- 3. Clean whitespace ---
     generated = re.sub(r"\s+", " ", generated).strip()
-
-    # --- 4. Repair truncation ---
     generated = _repair_story_end(generated)
-
-    # --- 5. Trim to target length on sentence boundary ---
-    #     Hard cap of 100 words; never cut mid-sentence.
     generated = _truncate_to_word_count(generated, low=50, high=100)
 
     return generated
@@ -238,16 +218,10 @@ def _extract_subject(caption: str) -> str:
 
 
 def _truncate_to_word_count(text: str, *, low: int, high: int) -> str:
-    """Trim to <= high words, always ending on a COMPLETE sentence.
-
-    Completeness beats length: if trimming to `high` would leave a
-    dangling clause, we back off to the last full sentence instead.
-    Only pads to `low` words if the model produced less than that.
-    """
+    """Trim to <= high words, always ending on a COMPLETE sentence."""
     if not text:
         return text
 
-    # Split into sentences, keeping the terminal punctuation.
     sentences = re.split(r"(?<=[.!?])\s+", text.strip())
     sentences = [s for s in sentences if s.strip()]
     if not sentences:
@@ -257,18 +231,13 @@ def _truncate_to_word_count(text: str, *, low: int, high: int) -> str:
     count = 0
     for s in sentences:
         n = len(s.split())
-        # Would this sentence push us past the hard cap?
         if count + n > high and kept:
-            # Stop BEFORE this sentence — never mid-sentence.
             break
-        # If it's the very first sentence and it's already over the cap,
-        # take it anyway (better one long sentence than nothing).
         kept.append(s)
         count += n
 
     out = " ".join(kept).strip()
 
-    # Only pad if the model produced too little to begin with.
     safety = 0
     while 0 < len(out.split()) < low and safety < 3:
         out += _HAPPY_ENDING
@@ -287,18 +256,13 @@ _DANGLING_LETTER = re.compile(r"\s+[A-Z]\.\s*$")
 
 def _repair_story_end(text: str) -> str:
     """Fix ragged endings: dangling articles, trailing single letters,
-    missing punctuation. Trims back to the last COMPLETE sentence
-    rather than stapling a period onto a fragment."""
+    missing punctuation. Trims back to the last COMPLETE sentence."""
     if not text:
         return text
 
     out = text.strip()
-
-    # Drop a lone trailing letter like " A." (mid-word generation cutoff)
     out = _DANGLING_LETTER.sub("", out).rstrip()
 
-    # If the story doesn't end on sentence punctuation, trim back to
-    # the last complete sentence — never staple a period onto a fragment.
     if out and not out.endswith((".", "!", "?")):
         last_punct = max(
             out.rfind("."),
@@ -307,13 +271,9 @@ def _repair_story_end(text: str) -> str:
         )
         if last_punct > 0:
             out = out[: last_punct + 1].rstrip()
-        # If there's truly no sentence end yet, leave as-is so the
-        # downstream truncation can still pick a boundary or pad.
 
-    # Drop a dangling conjunction / article at the very end
     out = _TRAILING_ARTICLE.sub("", out).rstrip()
 
-    # Guarantee a warm, complete-feeling ending for a kids' story
     if not re.search(
         r"(happily ever after|the end)\s*[.!]?\s*$", out, re.IGNORECASE
     ):
@@ -321,10 +281,10 @@ def _repair_story_end(text: str) -> str:
 
     return out
 
+
 # =============================================================================
 # 4. UI — Storybook spread (left page = upload, right page = story)
 # =============================================================================
-
 
 # ---------- Floating background emoji + rainbow title ----------
 st.markdown(
@@ -352,7 +312,7 @@ for _key, _default in (
     ("caption", ""),
     ("celebrated", False),
     ("phase", "idle"),          # idle | working | done
-    ("progress_step", 0),       # 0..3 → which loader stage we're on
+    ("progress_step", 0),
 ):
     st.session_state.setdefault(_key, _default)
 
@@ -360,7 +320,7 @@ for _key, _default in (
 page_l, page_r = st.columns([1, 1], gap="large")
 
 # =============================================================================
-#  LEFT PAGE — Upload
+#  LEFT PAGE — Upload (+ quest path in the empty state only)
 # =============================================================================
 with page_l:
     st.markdown(
@@ -380,6 +340,7 @@ with page_l:
     )
 
     if uploaded is not None:
+        # ---------- Post-upload state: image + magic button only ----------
         image = Image.open(uploaded)
         st.image(image, use_container_width=True)
 
@@ -396,28 +357,80 @@ with page_l:
                 unsafe_allow_html=True,
             )
 
-        # Disabled while the pipeline is running so the child can't spam it.
         make_story = st.button(
             "Make My Story!",
             type="primary",
             use_container_width=True,
-            help="Make some magic ✨",
+            help="Say the magic words ✨",
             key="make_story_btn",
             disabled=(st.session_state.phase == "working"),
         )
+
     else:
+        # ---------- Empty state: quest path guides the child in ----------
         image = None
         make_story = False
+
+        # Active step follows the phase:
+        #   idle    → step 1 active
+        #   working → step 2 active, step 1 done
+        #   done    → step 3 active, steps 1 & 2 done
+        _phase_now = st.session_state.phase
+        _active_step = {"idle": 1, "working": 2, "done": 3}.get(
+            _phase_now, 1
+        )
+
+        def _step_classes(n: int) -> str:
+            if n < _active_step:
+                return "quest-step done"
+            if n == _active_step:
+                return "quest-step active"
+            return "quest-step"
+
+        def _badge_text(n: int) -> str:
+            return "✓" if n < _active_step else str(n)
+
         st.markdown(
-            '<div class="wait-hint">'
-            '<span class="wait-emoji">☝️</span>'
-            '<span>Upload a picture above to see the magic button!</span>'
-            '</div>',
+            f"""
+<div class="quest-path">
+
+  <div class="{_step_classes(1)}">
+    <div class="quest-badge">{_badge_text(1)}</div>
+    <div class="quest-icon">🎨</div>
+    <div class="quest-text">
+      <div class="quest-title">Pick a picture</div>
+      <div class="quest-sub">PNG · JPG · WEBP · up to 25 MB</div>
+    </div>
+  </div>
+
+  <div class="quest-connector"></div>
+
+  <div class="{_step_classes(2)}">
+    <div class="quest-badge">{_badge_text(2)}</div>
+    <div class="quest-icon">✨</div>
+    <div class="quest-text">
+      <div class="quest-title">Say the magic words</div>
+      <div class="quest-sub">Press the big pink button</div>
+    </div>
+  </div>
+
+  <div class="quest-connector"></div>
+
+  <div class="{_step_classes(3)}">
+    <div class="quest-badge">{_badge_text(3)}</div>
+    <div class="quest-icon">🎧</div>
+    <div class="quest-text">
+      <div class="quest-title">Listen &amp; save</div>
+      <div class="quest-sub">Hear your story come alive</div>
+    </div>
+  </div>
+
+</div>
+""",
             unsafe_allow_html=True,
         )
 
-        # --- If the user cleared the upload, wipe any previous story/audio
-        #     so the right page doesn't keep showing the old result.
+        # Clear any stale story if the user removed their upload.
         if st.session_state.story or st.session_state.audio_bytes:
             for k, v in (
                 ("story", ""),
@@ -431,7 +444,7 @@ with page_l:
             st.rerun()
 
 # =============================================================================
-#  RIGHT PAGE — Story OR inline loader OR empty state
+#  RIGHT PAGE — Story OR inline loader OR Ollie empty state
 # =============================================================================
 with page_r:
     story = st.session_state.story
@@ -491,7 +504,6 @@ with page_r:
             unsafe_allow_html=True,
         )
 
-        # ---- Word count chip ----
         _wc = len(story.split())
         st.markdown(
             f'<div class="word-count">'
@@ -504,12 +516,8 @@ with page_r:
 
         st.audio(audio_bytes, format="audio/mp3")
 
-        # --- Download buttons ---------------------------------------------
-        # Use raw <a download> links (NOT st.download_button) so that
-        # clicking them does NOT trigger a Streamlit script rerun.
-        # Streamlit's download_button is a widget — any click causes a
-        # rerun, which re-mounts st.audio and resets playback mid-story.
-        # Native HTML <a download> just hands the file to the browser.
+        # Raw <a download> links (NOT st.download_button) so clicking them
+        # does not trigger a Streamlit rerun and interrupt audio playback.
         if audio_bytes:
             audio_b64 = base64.b64encode(audio_bytes).decode("ascii")
         else:
@@ -538,46 +546,70 @@ with page_r:
                 unsafe_allow_html=True,
             )
 
-    # -------- State C : nothing yet → friendly empty state -----------
+    # -------- State C : Ollie + guidance ------------------------------
     else:
         st.markdown(
-            '<div class="page-empty">'
-            '<div class="empty-emoji">📚</div>'
-            '<div class="empty-text">Your story will appear here…</div>'
-            '<div class="empty-hint">'
-            '🖼️ Upload a picture on the left → '
-            '🎨 press the magic button!'
-            '</div>'
-            '</div>',
+            """
+<div class="page-empty">
+
+  <!-- Ollie the Story Owl -->
+  <div class="story-guide" aria-hidden="true">
+    <div class="guide-body">
+      <div class="guide-eyes">
+        <span class="eye"><span class="pupil"></span></span>
+        <span class="eye"><span class="pupil"></span></span>
+      </div>
+      <div class="guide-beak"></div>
+    </div>
+    <div class="guide-wing left"></div>
+    <div class="guide-wing right"></div>
+  </div>
+
+  <!-- Speech bubble -->
+  <div class="guide-bubble">
+    <span class="guide-greet">Hi, story-maker!</span>
+    <span class="guide-ask">
+      I'm Ollie the Story Owl 🦉<br>
+      Show me a picture and I'll<br>
+      whisper a tale just for you…
+    </span>
+  </div>
+
+  <!-- Original guidance text, restored below Ollie -->
+  <div class="empty-original">
+    <div class="empty-text">Your story will appear here…</div>
+    <div class="empty-hint">
+      🖼️ Upload a picture on the left → 🎨 press the magic button!
+    </div>
+  </div>
+
+</div>
+""",
             unsafe_allow_html=True,
         )
 
 # =============================================================================
 # 6. MAIN PIPELINE — two-phase state machine
-#    Phase 1: user clicks → phase="working", rerun (loader appears)
-#    Phase 2: loader is on screen → run pipeline → phase="done", rerun
 # =============================================================================
 if make_story and uploaded is not None and st.session_state.phase == "idle":
-    # Kick off: flip to "working" so the next paint shows the loader.
     st.session_state.phase = "working"
     st.session_state.progress_step = 0
     st.rerun()
 
 if st.session_state.phase == "working" and uploaded is not None:
-    # Re-open the uploaded image for this run (UploadedFile is streamable).
     working_image = Image.open(uploaded)
 
     try:
-        st.session_state.progress_step = 0   # 🔎 Looking…
+        st.session_state.progress_step = 0
         caption = img2text(working_image)
 
-        st.session_state.progress_step = 1   # 📖 Writing…
+        st.session_state.progress_step = 1
         story = text2story(caption)
 
-        st.session_state.progress_step = 2   # 🎤 Recording…
+        st.session_state.progress_step = 2
         audio_bytes = text2audio(story)
 
-        st.session_state.progress_step = 3   # ✅ Done
+        st.session_state.progress_step = 3
 
     except Exception as exc:
         st.session_state.phase = "idle"

@@ -1,6 +1,6 @@
 /* ==========================================================================
-   📖  StorySpark — storybook theme for kids (ages 3–10)  🌈🦄✨
-   Full optimized stylesheet — Option B (3D turning page) + layout fixes.
+   📖  StorySpark — storybook theme for kids (ages 3–10)  🌈🦉✨
+   Full optimized stylesheet — quest path, Ollie, 3D loader, no column scroll.
    ========================================================================== */
 
 :root {
@@ -42,15 +42,14 @@
 section.main > div.block-container {
     max-width: 100% !important;
     width: 100% !important;
-    padding: 0.4rem 2rem 0.2rem 2rem !important;
+    padding: 0.1rem 2rem 0.2rem 2rem !important;
     margin: 0 auto !important;
 }
 
-/* Push the two-column row down so it doesn't crowd the title */
 [data-testid="stHorizontalBlock"] {
     gap: 1.4rem !important;
     align-items: stretch !important;
-    margin-top: 1.6rem !important;
+    margin-top: 1.4rem !important;
 }
 
 /* =================================================================
@@ -66,8 +65,12 @@ section.main > div.block-container {
     background: var(--paper);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
     transition: box-shadow 0.4s ease, background 0.4s ease;
-    position: relative;        /* establishes stacking context */
-    z-index: 1;                /* paints above the .scene layer */
+    position: relative;
+    z-index: 1;
+
+    /* Prevent Streamlit from adding its own inner scrollbar */
+    overflow: visible !important;
+    max-height: none !important;
 }
 [data-testid="column"]:nth-of-type(1) {
     background: linear-gradient(160deg, #fffef9 60%, #ffe9f1 100%);
@@ -83,6 +86,14 @@ section.main > div.block-container {
     border-radius: 0 !important;
     z-index: auto !important;
     position: static !important;
+}
+
+/* Some Streamlit versions attach their own scroll container
+   to columns — kill it so the page scrolls naturally. */
+[data-testid="stColumn"],
+section[data-testid="stColumn"] {
+    overflow: visible !important;
+    max-height: none !important;
 }
 
 /* Right page glows softly while the loader is active */
@@ -106,7 +117,7 @@ section.main > div.block-container {
     position: fixed;
     inset: 0;
     pointer-events: none;
-    z-index: -1;               /* sits BELOW page cards & title */
+    z-index: -1;
     overflow: hidden;
 }
 .float {
@@ -133,9 +144,9 @@ section.main > div.block-container {
    ================================================================= */
 .title {
     text-align: center;
-    padding: 0.1rem 0 0.4rem;
+    padding: 0 0 0.4rem;
     position: relative;
-    z-index: 2;                /* above page cards */
+    z-index: 2;
 }
 .title-main {
     font-family: 'Baloo 2', 'Fredoka', cursive;
@@ -170,19 +181,19 @@ section.main > div.block-container {
     align-items: center;
     gap: 0.6rem;
     font-family: 'Baloo 2', 'Fredoka', cursive;
-    font-size: 1.55rem;
+    font-size: 1.45rem;
     font-weight: 800;
     color: var(--ink);
     margin-bottom: 0.7rem;
 }
 .page-emoji {
-    font-size: 1.9rem;
+    font-size: 1.8rem;
     filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.10));
 }
 
 /* =================================================================
-    FILE UPLOADER
-    ================================================================= */
+   FILE UPLOADER
+   ================================================================= */
 [data-testid="stFileUploader"] {
     border: 4px dashed var(--coral) !important;
     border-radius: 24px !important;
@@ -201,8 +212,8 @@ section.main > div.block-container {
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
     font-weight: 800 !important;
     font-size: 1.1rem !important;
-    padding: 1rem !important;
-    min-height: 110px !important;
+    padding: 0.8rem !important;
+    min-height: 90px !important;
 }
 [data-testid="stFileUploaderDropzone"] button {
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
@@ -219,7 +230,6 @@ section.main > div.block-container {
     transform: translateY(-1px);
 }
 
-/* File uploader disabled during story generation */
 [data-testid="stFileUploader"][data-disabled="true"],
 .column-left-working [data-testid="stFileUploader"] {
     opacity: 0.5 !important;
@@ -256,25 +266,100 @@ section.main > div.block-container {
 .stImage img:hover { transform: rotate(0deg) scale(1.01); }
 
 /* =================================================================
-   WAIT HINT — shown before a picture is uploaded
+   QUEST PATH — 3-step adventure with progress states
+   (rendered ONLY in the empty state; disappears after upload)
    ================================================================= */
-.wait-hint {
+.quest-path {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 1.2rem;
+    padding: 1.1rem 1.1rem 1.1rem 1.2rem;
+    background: linear-gradient(180deg, #ffffff 0%, #fff8fb 100%);
+    border-radius: 22px;
+    border: 3px solid #ffffff;
+    box-shadow:
+        0 6px 0 #ffe1eb,
+        0 12px 24px rgba(255, 111, 145, 0.14);
+    font-family: 'Baloo 2', cursive;
+    animation: fade-in 0.5s ease;
+}
+
+.quest-step {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-top: 1rem;
-    padding: 0.85rem 1rem;
-    background: #fff7fa;
-    border: 3px dashed #ffb3c8;
-    border-radius: 18px;
-    font-family: 'Baloo 2', cursive;
-    font-weight: 700;
-    font-size: 1.02rem;
-    color: var(--ink-soft);
-    animation: floaty 3s ease-in-out infinite;
+    gap: 0.75rem;
+    padding: 0.5rem 0.6rem;
+    border-radius: 14px;
+    transition: background 0.25s ease, transform 0.25s ease,
+                box-shadow 0.25s ease;
 }
-.wait-emoji {
-    font-size: 1.5rem;
+
+/* --- Active step: coral highlight --- */
+.quest-step.active {
+    background: linear-gradient(180deg, #fff7fa 0%, #ffe8f0 100%);
+    box-shadow: inset 0 0 0 2px rgba(255, 111, 145, 0.25);
+    transform: translateX(2px);
+}
+.quest-step.active .quest-title { color: var(--coral-deep); }
+.quest-step.active .quest-badge {
+    background: linear-gradient(180deg, var(--coral) 0%, var(--coral-dark) 100%);
+    box-shadow: 0 2px 0 var(--coral-deep);
+}
+
+/* --- Done step: green checkmark --- */
+.quest-step.done .quest-badge {
+    background: linear-gradient(180deg, var(--grass) 0%, var(--grass-dark) 100%);
+    box-shadow: 0 2px 0 #1e7f53;
+    font-size: 1rem;
+}
+.quest-step.done .quest-title { color: var(--grass-dark); }
+.quest-step.done .quest-icon {
+    filter: saturate(0.65);
+    opacity: 0.85;
+}
+
+/* --- Badge base --- */
+.quest-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #cfd3dc 0%, #9aa0ad 100%);
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 900;
+    box-shadow: 0 2px 0 #7a7f8a;
+    flex: 0 0 auto;
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+.quest-icon {
+    font-size: 1.4rem;
+    line-height: 1;
+    flex: 0 0 auto;
+    transition: filter 0.25s ease, opacity 0.25s ease;
+}
+.quest-text { display: flex; flex-direction: column; gap: 0.05rem; }
+.quest-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--ink);
+    transition: color 0.25s ease;
+}
+.quest-sub {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    opacity: 0.8;
+}
+.quest-connector {
+    width: 3px;
+    height: 12px;
+    margin-left: 1.35rem;
+    background: linear-gradient(180deg, #e6e9ee 0%, #cfd3dc 100%);
+    border-radius: 2px;
 }
 
 /* =================================================================
@@ -310,7 +395,7 @@ section.main > div.block-container {
 }
 
 /* =================================================================
-   PRIMARY MAGIC BUTTON — slim, with a wand icon badge
+   PRIMARY MAGIC BUTTON
    ================================================================= */
 .stButton:has(button[kind="primary"]) {
     display: flex;
@@ -384,6 +469,16 @@ button[kind="primary"]::after {
     content: none !important;
 }
 
+.stButton > button[kind="primary"]:hover::before,
+button[kind="primary"]:hover::before {
+    animation: wand-wave 0.6s ease-in-out;
+}
+@keyframes wand-wave {
+    0%, 100% { transform: rotate(0deg); }
+    25%      { transform: rotate(-15deg); }
+    75%      { transform: rotate(15deg); }
+}
+
 .stButton > button[kind="primary"]:not(:disabled):hover,
 button[kind="primary"]:not(:disabled):hover {
     transform: translateY(-2px) scale(1.02);
@@ -413,7 +508,6 @@ button[kind="primary"]:not(:disabled):active {
     50%      { transform: scale(1.02) rotate(0.3deg);  }
 }
 
-/* Disabled magic button */
 .stButton > button[kind="primary"]:disabled,
 button[kind="primary"]:disabled {
     background:
@@ -438,13 +532,8 @@ button[kind="primary"]:disabled::before {
 }
 
 /* =================================================================
-   DOWNLOAD LINKS — sky blue (voice) & coral (story), compact
-   ----------------------------------------------------------------
-   Raw <a download href="data:..."> elements (NOT st.download_button).
-   Using native HTML keeps a click from triggering a Streamlit
-   script rerun — so the playing audio is NOT interrupted.
+   DOWNLOAD LINKS — sky blue (voice) & coral (story)
    ================================================================= */
-
 .ss-dl-cell {
     display: flex !important;
     justify-content: center !important;
@@ -529,77 +618,6 @@ button[kind="primary"]:disabled::before {
 }
 
 /* =================================================================
-   RESET BUTTON ("One more story!") — mint green + refresh icon
-   ================================================================= */
-[class*="st-key-reset_btn"] {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    align-self: stretch !important;
-    width: 100% !important;
-    min-width: 155px !important;
-    flex-shrink: 0 !important;
-}
-[class*="st-key-reset_btn"] .stButton {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-}
-
-[class*="st-key-reset_btn"] .stButton > button,
-.stButton > button[key="reset_btn"] {
-    font-family: 'Baloo 2', 'Fredoka', cursive !important;
-    font-size: 0.95rem !important;
-    font-weight: 800 !important;
-    letter-spacing: 0.01em !important;
-    color: #fff !important;
-    border: 3px solid #fff !important;
-    border-radius: 999px !important;
-    min-height: 44px !important;
-    height: 44px !important;
-    padding: 0 1rem 0 0.6rem !important;
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    margin: 0.15rem auto !important;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 0.45rem !important;
-    background: linear-gradient(180deg, #6fe0a6 0%, #2ea36f 100%) !important;
-    box-shadow: 0 3px 0 #1e7f53, 0 6px 12px rgba(94, 217, 154, 0.32) !important;
-    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
-    white-space: nowrap !important;
-}
-[class*="st-key-reset_btn"] .stButton > button::before,
-.stButton > button[key="reset_btn"]::before {
-    content: "" !important;
-    display: inline-block !important;
-    width: 26px !important;
-    height: 26px !important;
-    border-radius: 50% !important;
-    background-color: rgba(255, 255, 255, 0.22) !important;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12a9 9 0 0 1 15-6.7L21 8'/><path d='M21 3v5h-5'/><path d='M21 12a9 9 0 0 1-15 6.7L3 16'/><path d='M3 21v-5h5'/></svg>") !important;
-    background-repeat: no-repeat !important;
-    background-position: center !important;
-    background-size: 15px 15px !important;
-    flex: 0 0 auto !important;
-    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45);
-}
-.stButton > button[key="reset_btn"]:hover,
-[class*="st-key-reset_btn"] .stButton > button:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.05);
-    box-shadow: 0 5px 0 #1e7f53, 0 9px 16px rgba(94, 217, 154, 0.42) !important;
-}
-.stButton > button[key="reset_btn"]:active,
-[class*="st-key-reset_btn"] .stButton > button:active {
-    transform: translateY(2px);
-    box-shadow: 0 1px 0 #1e7f53, 0 3px 6px rgba(94, 217, 154, 0.35) !important;
-}
-
-/* =================================================================
    STORY TEXT
    ================================================================= */
 .story-text {
@@ -622,7 +640,7 @@ button[kind="primary"]:disabled::before {
 }
 
 /* =================================================================
-   WORD COUNT CHIP — count only
+   WORD COUNT CHIP
    ================================================================= */
 .word-count {
     display: inline-flex;
@@ -660,7 +678,7 @@ button[kind="primary"]:disabled::before {
 .stAudio audio { width: 100%; height: 44px; border-radius: 14px; }
 
 /* =================================================================
-   EMPTY STATE
+   EMPTY STATE — Ollie + original guidance text
    ================================================================= */
 .page-empty {
     display: flex;
@@ -669,36 +687,185 @@ button[kind="primary"]:disabled::before {
     justify-content: center;
     text-align: center;
     min-height: 58vh;
+    padding: 1rem 1rem 2rem;
     background: transparent;
-    padding: 1rem;
 }
-.empty-emoji {
+
+/* Fallback: single emoji owl */
+.guide-emoji {
     font-size: 5rem;
     line-height: 1;
-    animation: floaty 3.5s ease-in-out infinite;
+    animation: guide-bob 3s ease-in-out infinite;
+    filter: drop-shadow(0 8px 12px rgba(255, 111, 145, 0.25));
+    margin-bottom: 1.2rem;
 }
-@keyframes floaty {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(-10px); }
+
+/* --- Ollie: pure CSS owl --- */
+.story-guide {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin-bottom: 1.4rem;
+    animation: guide-bob 3s ease-in-out infinite;
+    filter: drop-shadow(0 10px 14px rgba(255, 111, 145, 0.22));
 }
-.empty-text {
+@keyframes guide-bob {
+    0%, 100% { transform: translateY(0) rotate(-1deg); }
+    50%      { transform: translateY(-6px) rotate(1deg); }
+}
+
+.guide-body {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 30% 20%, #ffe0ea 0%, transparent 55%),
+        linear-gradient(180deg, #ffb3c8 0%, #ff8bab 50%, #e54a76 100%);
+    border-radius: 50% 50% 45% 45% / 55% 55% 45% 45%;
+    border: 4px solid #fff;
+    box-shadow: inset 0 -10px 20px -12px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+.guide-eyes {
+    position: absolute;
+    top: 26px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+}
+.eye {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.06);
+    animation: blink 4.5s ease-in-out infinite;
+}
+@keyframes blink {
+    0%, 92%, 100% { transform: scaleY(1); }
+    95%           { transform: scaleY(0.15); }
+}
+.pupil {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #2f2a3a;
+    animation: look-around 6s ease-in-out infinite;
+}
+@keyframes look-around {
+    0%, 100%  { transform: translate(0, 0); }
+    25%       { transform: translate(-3px, 1px); }
+    50%       { transform: translate(3px, -1px); }
+    75%       { transform: translate(0, 1px); }
+}
+
+.guide-beak {
+    position: absolute;
+    top: 58px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 12px solid #ffb400;
+    filter: drop-shadow(0 1px 0 #cc8a00);
+}
+
+.guide-wing {
+    position: absolute;
+    top: 55px;
+    width: 26px;
+    height: 44px;
+    background: linear-gradient(180deg, #ff8bab 0%, #e54a76 100%);
+    border: 3px solid #fff;
+    border-radius: 50% 50% 40% 40%;
+    transform-origin: top center;
+    z-index: -1;
+}
+.guide-wing.left {
+    left: -6px;
+    animation: wing-wave 2.2s ease-in-out infinite;
+}
+.guide-wing.right {
+    right: -6px;
+    animation: wing-wave 2.2s ease-in-out infinite reverse;
+}
+@keyframes wing-wave {
+    0%, 100% { transform: rotate(0deg); }
+    50%      { transform: rotate(-12deg); }
+}
+
+/* Speech bubble */
+.guide-bubble {
+    position: relative;
+    max-width: 24rem;
+    padding: 1rem 1.2rem 1.1rem;
+    background: #ffffff;
+    border: 3px solid #ffffff;
+    border-radius: 22px;
+    box-shadow:
+        0 6px 0 #ffe1eb,
+        0 12px 24px rgba(255, 111, 145, 0.14);
     font-family: 'Baloo 2', cursive;
-    font-size: 1.35rem;
+    color: var(--ink);
+    text-align: center;
+    animation: fade-in 0.6s ease 0.1s backwards;
+}
+.guide-bubble::before {
+    content: "";
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 18px;
+    height: 18px;
+    background: #ffffff;
+    box-shadow: -2px -2px 4px rgba(255, 111, 145, 0.06);
+    border-radius: 2px;
+}
+.guide-greet {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: var(--coral-deep);
+    margin-bottom: 0.25rem;
+}
+.guide-ask {
+    display: block;
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: var(--ink-soft);
+    line-height: 1.5;
+}
+
+/* --- Original guidance text below Ollie's bubble --- */
+.empty-original {
+    margin-top: 1.4rem;
+    text-align: center;
+}
+.empty-original .empty-text {
+    font-family: 'Baloo 2', cursive;
+    font-size: 1.2rem;
     font-weight: 800;
     color: var(--ink);
-    margin-top: 0.6rem;
+    margin-bottom: 0.3rem;
 }
-.empty-hint {
-    font-size: 1.05rem;
+.empty-original .empty-hint {
+    font-size: 1rem;
     font-weight: 600;
     color: var(--ink-soft);
-    margin-top: 0.4rem;
-    max-width: 26rem;
-    line-height: 1.45;
+    line-height: 1.5;
+    max-width: 24rem;
+    margin: 0 auto;
 }
 
 /* =================================================================
-   PROGRESS — inline 3D turning-book loader  (Option B)
+   PROGRESS — inline 3D turning-book loader
    ================================================================= */
 .progress-inline {
     display: flex;
@@ -712,7 +879,6 @@ button[kind="primary"]:disabled::before {
     animation: fade-in 0.25s ease;
 }
 
-/* ---- The 3D book ---- */
 .turning-book {
     position: relative;
     width: 150px;
@@ -729,7 +895,6 @@ button[kind="primary"]:disabled::before {
     50%      { transform: translateY(-4px) rotate(0.4deg);  }
 }
 
-/* Static open-book base (two facing pages) */
 .turning-book .base {
     position: absolute;
     inset: 0;
@@ -756,8 +921,6 @@ button[kind="primary"]:disabled::before {
     border-radius: 3px 12px 12px 3px;
     border-left: none;
 }
-
-/* Faint text lines on the static left page */
 .turning-book .base .left::before {
     content: "";
     position: absolute;
@@ -772,8 +935,6 @@ button[kind="primary"]:disabled::before {
         0 28px 0 rgba(89, 200, 255, 0.40),
         0 42px 0 rgba(89, 200, 255, 0.40);
 }
-
-/* Spine crease */
 .turning-book .spine {
     position: absolute;
     top: 4px;
@@ -790,8 +951,6 @@ button[kind="primary"]:disabled::before {
     z-index: 3;
     pointer-events: none;
 }
-
-/* The animated turning page — swings in real 3D around the spine */
 .turning-book .page {
     position: absolute;
     top: 3px;
@@ -838,8 +997,6 @@ button[kind="primary"]:disabled::before {
             inset 8px 0 12px -10px rgba(0, 0, 0, 0.14);
     }
 }
-
-/* Faint text lines on the turning page */
 .turning-book .page .line {
     position: absolute;
     left: 10px;
@@ -852,7 +1009,6 @@ button[kind="primary"]:disabled::before {
 .turning-book .page .line.l3 { top: 50px; width: 52px; }
 .turning-book .page .line.l4 { top: 66px; width: 34px; }
 
-/* ---- Loader emoji / bar / text ---- */
 .progress-inline .progress-emoji {
     font-size: 2.6rem;
     line-height: 1;
@@ -887,8 +1043,6 @@ button[kind="primary"]:disabled::before {
     font-weight: 800;
     color: var(--ink);
 }
-
-/* Animated typing dots after the caption */
 .progress-inline .progress-text::after {
     content: "";
     display: inline-block;
@@ -904,6 +1058,12 @@ button[kind="primary"]:disabled::before {
     100% { content: "";    }
 }
 
+/* floaty is used by several small animated elements */
+@keyframes floaty {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
+}
+
 /* =================================================================
    HIDE STREAMLIT CHROME
    ================================================================= */
@@ -911,13 +1071,14 @@ header[data-testid="stHeader"] { display: none; }
 footer,
 [data-testid="stToolbar"],
 [data-testid="stDecoration"] { visibility: hidden; }
+[data-testid="stStatusWidget"] { display: none !important; }
 
 /* =================================================================
    FOOTER
    ================================================================= */
 .footer-bar {
     position: fixed;
-    bottom: 0.4rem;
+    bottom: 0.9rem;
     left: 0;
     right: 0;
     text-align: center;
@@ -939,7 +1100,7 @@ footer,
     [data-testid="column"] {
         width: 100% !important;
         flex: 1 1 100% !important;
-        min-height: auto;
+        min-height: auto !important;
         padding: 0.9rem 1rem 2rem;
     }
     [data-testid="column"] [data-testid="column"] {
@@ -949,7 +1110,6 @@ footer,
     .page-heading { font-size: 1.25rem; }
     .story-text   { max-height: none; font-size: 1.1rem; }
     .float        { font-size: 2rem; opacity: 0.4; }
-    .empty-emoji  { font-size: 3.5rem; }
     .page-empty   { min-height: 40vh; }
     .progress-inline { min-height: 40vh; }
 

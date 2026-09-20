@@ -138,7 +138,7 @@ section[data-testid="stColumn"] {
 .f3 { top: 55%;    left: 2%;   animation-delay: 2.1s; font-size: 3rem; }
 .f4 { top: 40%;    right: 2%;  animation-delay: 0.6s; font-size: 3.2rem; }
 .f5 { bottom: 8%;  left: 8%;   animation-delay: 1.8s; font-size: 2.4rem; }
-.f6 { bottom: 12%; right: 9%;  animation-delay: 2.4s; font-size: 2.8rem; }
+.f6 { bottom: 12%; right: 3%;  animation-delay: 2.4s; font-size: 2.8rem; }
 
 @keyframes drift {
     0%, 100% { transform: translateY(0) rotate(-3deg); }
@@ -635,7 +635,7 @@ button[kind="primary"]:disabled::after {
     width: 100% !important;
     min-width: 155px !important;
     flex-shrink: 0 !important;
-    margin: 0.15rem 0 !important;
+    margin: -2.15rem 0 !important;
 }
 
 .ss-dl-link {

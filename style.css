@@ -1,6 +1,6 @@
 /* ==========================================================================
    📖  StorySpark — storybook theme for kids (ages 3–10)  🌈🦉✨
-   Full optimized stylesheet — quest path, Ollie, 3D loader, no column scroll.
+   Full optimized stylesheet.
    ========================================================================== */
 
 :root {
@@ -68,8 +68,6 @@ section.main > div.block-container {
     transition: box-shadow 0.4s ease, background 0.4s ease;
     position: relative;
     z-index: 1;
-
-    /* Prevent Streamlit from adding its own inner scrollbar */
     overflow: visible !important;
     max-height: none !important;
 }
@@ -115,9 +113,7 @@ section[data-testid="stColumn"] {
    FLOATING BACKGROUND EMOJI
    -----------------------------------------------------------------
    Scene sits ABOVE the page background but BELOW the two page
-   cards & title. We use z-index 0 here and lift the cards to
-   z-index 1, title to z-index 2, so the balloons and unicorn
-   peek out from behind the pages.
+   cards & title. z-index 0 here, cards z-index 1, title z-index 2.
    ================================================================= */
 .scene {
     position: fixed;
@@ -125,14 +121,14 @@ section[data-testid="stColumn"] {
     width: 100vw;
     height: 100vh;
     pointer-events: none;
-    z-index: 0;                /* above background, below cards */
+    z-index: 0;
     overflow: hidden;
 }
 .float {
     position: absolute;
     font-size: 3rem;
     line-height: 1;
-    opacity: 0.65;             /* a touch more visible than before */
+    opacity: 0.65;
     filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.08));
     animation: drift 9s ease-in-out infinite;
     will-change: transform;
@@ -305,7 +301,7 @@ section[data-testid="stColumn"] {
                 box-shadow 0.25s ease;
 }
 
-/* --- Active step: coral highlight --- */
+/* Active step: coral highlight */
 .quest-step.active {
     background: linear-gradient(180deg, #fff7fa 0%, #ffe8f0 100%);
     box-shadow: inset 0 0 0 2px rgba(255, 111, 145, 0.25);
@@ -317,7 +313,7 @@ section[data-testid="stColumn"] {
     box-shadow: 0 2px 0 var(--coral-deep);
 }
 
-/* --- Done step: green checkmark --- */
+/* Done step: green checkmark */
 .quest-step.done .quest-badge {
     background: linear-gradient(180deg, var(--grass) 0%, var(--grass-dark) 100%);
     box-shadow: 0 2px 0 #1e7f53;
@@ -329,7 +325,7 @@ section[data-testid="stColumn"] {
     opacity: 0.85;
 }
 
-/* --- Badge base --- */
+/* Badge base */
 .quest-badge {
     display: inline-flex;
     align-items: center;
@@ -405,109 +401,184 @@ section[data-testid="stColumn"] {
 }
 
 /* =================================================================
-   PRIMARY MAGIC BUTTON
+   PRIMARY MAGIC BUTTON — bigger, magical, sparkling
    ================================================================= */
 .stButton:has(button[kind="primary"]) {
     display: flex;
     justify-content: center;
-    margin: 0.5rem 0 0.3rem;
+    margin: 1rem 0 0.5rem;
+    position: relative;
 }
 
 .stButton:has(button[kind="primary"]) [data-testid="stButton"] {
     width: auto !important;
     display: inline-block !important;
+    position: relative;
 }
 
+/* Sparkles floating around the button */
+.stButton:has(button[kind="primary"])::before,
+.stButton:has(button[kind="primary"])::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: radial-gradient(circle,
+        #fff2a8 0%, #ffcc33 40%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: sparkle-orbit 3s ease-in-out infinite;
+    z-index: 3;
+}
+.stButton:has(button[kind="primary"])::before {
+    top: -6px;
+    left: 12%;
+    animation-delay: 0s;
+}
+.stButton:has(button[kind="primary"])::after {
+    bottom: -6px;
+    right: 12%;
+    animation-delay: 1.5s;
+}
+@keyframes sparkle-orbit {
+    0%, 100% { transform: scale(0.6) translateY(0);    opacity: 0.4; }
+    50%      { transform: scale(1.2) translateY(-8px); opacity: 1;   }
+}
+
+/* The button itself */
 .stButton > button[kind="primary"],
 button[kind="primary"],
 button[data-testid="baseButton-primary"] {
     width: auto !important;
-    min-width: 220px !important;
-    max-width: 90% !important;
-    min-height: 52px !important;
-    height: 52px !important;
-    padding: 0 1.6rem !important;
+    min-width: 260px !important;
+    max-width: 92% !important;
+    min-height: 62px !important;
+    height: 62px !important;
+    padding: 0 2rem !important;
     border-radius: 999px !important;
-    border: 4px solid #fff !important;
+    border: 4px solid #ffffff !important;
 
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
-    font-size: 1.1rem !important;
+    font-size: 1.25rem !important;
     font-weight: 900 !important;
-    letter-spacing: 0.02em !important;
+    letter-spacing: 0.03em !important;
     color: #fff !important;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.20) !important;
+    text-shadow: 0 2px 3px rgba(140, 34, 66, 0.35) !important;
 
     background:
-        radial-gradient(circle at 30% 20%, #ffb3c8 0%, transparent 50%),
-        linear-gradient(180deg, #ff8bab 0%, #ff6f91 45%, #e54a76 100%) !important;
+        radial-gradient(circle at 25% 25%, #ffd0dd 0%, transparent 45%),
+        radial-gradient(circle at 80% 80%, #ffa7c1 0%, transparent 50%),
+        linear-gradient(180deg, #ff9bb4 0%, #ff6f91 45%, #e54a76 100%) !important;
 
     box-shadow:
-        0 4px 0 var(--coral-deep),
-        0 6px 0 var(--coral-deeper),
-        0 10px 18px rgba(255, 111, 145, 0.38) !important;
+        0 5px 0 var(--coral-deep),
+        0 7px 0 var(--coral-deeper),
+        0 14px 26px rgba(255, 111, 145, 0.45),
+        inset 0 2px 0 rgba(255, 255, 255, 0.4) !important;
 
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 0.55rem !important;
+    gap: 0.7rem !important;
 
-    animation: magic-pulse 2.4s ease-in-out infinite;
+    animation:
+        magic-pulse 2.4s ease-in-out infinite,
+        glow-flicker 3.6s ease-in-out infinite;
+
     transform-origin: center;
     transition: transform 0.12s ease, box-shadow 0.12s ease;
     position: relative;
-    overflow: visible;
+    overflow: hidden;
+    cursor: pointer;
 }
 
+/* Wand icon badge */
 .stButton > button[kind="primary"]::before,
 button[kind="primary"]::before {
     content: "" !important;
     display: inline-block !important;
-    width: 24px !important;
-    height: 24px !important;
+    width: 30px !important;
+    height: 30px !important;
     border-radius: 50% !important;
-    background-color: rgba(255, 255, 255, 0.22) !important;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M15 4V2'/><path d='M15 16v-2'/><path d='M8 9h2'/><path d='M20 9h2'/><path d='M17.8 11.8 19 13'/><path d='M15 9h.01'/><path d='M17.8 6.2 19 5'/><path d='m3 21 9-9'/><path d='M12.2 6.2 11 5'/></svg>") !important;
+    background-color: rgba(255, 255, 255, 0.28) !important;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M15 4V2'/><path d='M15 16v-2'/><path d='M8 9h2'/><path d='M20 9h2'/><path d='M17.8 11.8 19 13'/><path d='M15 9h.01'/><path d='M17.8 6.2 19 5'/><path d='m3 21 9-9'/><path d='M12.2 6.2 11 5'/></svg>") !important;
     background-repeat: no-repeat !important;
     background-position: center !important;
-    background-size: 14px 14px !important;
+    background-size: 18px 18px !important;
     flex: 0 0 auto !important;
-    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45);
+    box-shadow:
+        inset 0 0 0 2px rgba(255, 255, 255, 0.6),
+        0 2px 6px rgba(184, 50, 90, 0.35);
+    transition: transform 0.3s ease;
 }
 
+/* Shimmer sweep across the button */
 .stButton > button[kind="primary"]::after,
 button[kind="primary"]::after {
-    content: none !important;
+    content: "" !important;
+    position: absolute;
+    top: 0;
+    left: -75%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(115deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.55) 45%,
+        rgba(255, 255, 255, 0.85) 50%,
+        rgba(255, 255, 255, 0.55) 55%,
+        transparent 100%);
+    border-radius: 999px;
+    transform: skewX(-18deg);
+    animation: shimmer-sweep 3.6s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+}
+@keyframes shimmer-sweep {
+    0%   { left: -75%; }
+    40%  { left: 120%; }
+    100% { left: 120%; }
 }
 
+/* Button text sits above the shimmer */
+.stButton > button[kind="primary"] > *,
+button[kind="primary"] > * {
+    position: relative;
+    z-index: 2;
+}
+
+/* Hover */
 .stButton > button[kind="primary"]:hover::before,
 button[kind="primary"]:hover::before {
     animation: wand-wave 0.6s ease-in-out;
 }
 @keyframes wand-wave {
     0%, 100% { transform: rotate(0deg); }
-    25%      { transform: rotate(-15deg); }
-    75%      { transform: rotate(15deg); }
+    25%      { transform: rotate(-18deg); }
+    75%      { transform: rotate(18deg); }
 }
 
 .stButton > button[kind="primary"]:not(:disabled):hover,
 button[kind="primary"]:not(:disabled):hover {
-    transform: translateY(-2px) scale(1.02);
+    transform: translateY(-3px) scale(1.03);
     box-shadow:
-        0 6px 0 var(--coral-deep),
-        0 8px 0 var(--coral-deeper),
-        0 16px 24px rgba(255, 111, 145, 0.50) !important;
+        0 7px 0 var(--coral-deep),
+        0 10px 0 var(--coral-deeper),
+        0 20px 30px rgba(255, 111, 145, 0.55),
+        inset 0 2px 0 rgba(255, 255, 255, 0.5) !important;
     animation-play-state: paused;
 }
 
+/* Active / click */
 .stButton > button[kind="primary"]:not(:disabled):active,
 button[kind="primary"]:not(:disabled):active {
-    transform: translateY(3px) scale(0.98);
+    transform: translateY(4px) scale(0.97);
     box-shadow:
         0 1px 0 var(--coral-deep),
         0 2px 0 var(--coral-deeper),
-        0 6px 10px rgba(255, 111, 145, 0.40) !important;
+        0 6px 12px rgba(255, 111, 145, 0.45) !important;
 }
 
+/* Focus ring */
 .stButton > button[kind="primary"]:focus-visible {
     outline: 4px dashed var(--sunny) !important;
     outline-offset: 5px !important;
@@ -517,7 +588,24 @@ button[kind="primary"]:not(:disabled):active {
     0%, 100% { transform: scale(1)    rotate(-0.3deg); }
     50%      { transform: scale(1.02) rotate(0.3deg);  }
 }
+@keyframes glow-flicker {
+    0%, 100% {
+        box-shadow:
+            0 5px 0 var(--coral-deep),
+            0 7px 0 var(--coral-deeper),
+            0 14px 26px rgba(255, 111, 145, 0.45),
+            inset 0 2px 0 rgba(255, 255, 255, 0.4);
+    }
+    50% {
+        box-shadow:
+            0 5px 0 var(--coral-deep),
+            0 7px 0 var(--coral-deeper),
+            0 18px 34px rgba(255, 204, 51, 0.55),
+            inset 0 2px 0 rgba(255, 255, 255, 0.55);
+    }
+}
 
+/* Disabled state */
 .stButton > button[kind="primary"]:disabled,
 button[kind="primary"]:disabled {
     background:
@@ -539,6 +627,10 @@ button[kind="primary"]:disabled {
 .stButton > button[kind="primary"]:disabled::before,
 button[kind="primary"]:disabled::before {
     opacity: 0.6;
+}
+.stButton > button[kind="primary"]:disabled::after,
+button[kind="primary"]:disabled::after {
+    content: none !important;
 }
 
 /* =================================================================
@@ -628,7 +720,7 @@ button[kind="primary"]:disabled::before {
 }
 
 /* =================================================================
-   STORY TEXT
+   STORY TEXT — fully visible, no scroll (100 words max fits easily)
    ================================================================= */
 .story-text {
     font-family: 'Baloo 2', 'Comic Sans MS', system-ui, sans-serif;
@@ -640,8 +732,6 @@ button[kind="primary"]:disabled::before {
     padding: 1.1rem 1.3rem;
     margin: 0.3rem 0 0.7rem;
     box-shadow: inset 0 0 0 2px rgba(255, 204, 51, 0.25);
-    max-height: 32vh;
-    overflow-y: auto;
     animation: fade-in 0.45s ease;
 }
 @keyframes fade-in {
@@ -710,7 +800,7 @@ button[kind="primary"]:disabled::before {
     margin-bottom: 1.2rem;
 }
 
-/* --- Ollie: pure CSS owl --- */
+/* Ollie: pure CSS owl */
 .story-guide {
     position: relative;
     width: 120px;
@@ -853,7 +943,7 @@ button[kind="primary"]:disabled::before {
     line-height: 1.5;
 }
 
-/* --- Original guidance text below Ollie's bubble --- */
+/* Original guidance text below Ollie's bubble */
 .empty-original {
     margin-top: 1.4rem;
     text-align: center;
@@ -1123,7 +1213,7 @@ footer,
     }
 
     .page-heading { font-size: 1.25rem; }
-    .story-text   { max-height: none; font-size: 1.1rem; }
+    .story-text   { font-size: 1.1rem; }
     .float        { font-size: 2rem; opacity: 0.4; }
     .page-empty   { min-height: 40vh; }
     .progress-inline { min-height: 40vh; }
@@ -1133,8 +1223,8 @@ footer,
         min-width: 0 !important;
         width: 100% !important;
         font-size: 1.1rem !important;
-        min-height: 50px !important;
-        height: 50px !important;
+        min-height: 54px !important;
+        height: 54px !important;
         padding: 0 1.4rem !important;
     }
 }

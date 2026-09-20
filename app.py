@@ -154,7 +154,18 @@ _STORY_PROMPTS = {
 
 
 def text2story(text):
-    """Caption → story (50–100 words, bedtime style, kid-friendly)."""
+    """Caption → story (50–120 words, bedtime style, kid-friendly).
+
+    Notes
+    -----
+    * We deliberately DO NOT pass ``pad_token_id`` — for TinyStories-33M the
+      tokenizer has no dedicated pad token, and passing ``eos_token_id`` as
+      pad makes the model stop the moment it emits EOS (mid-sentence).
+    * ``max_new_tokens`` is raised to 160 so the model has room to reach a
+      natural sentence end.
+    * Post-processing repairs ragged endings (missing punctuation, dangling
+      articles, single trailing letters like "A.").
+    """
     story_gen, model_id = _get_story_pipeline()
     template = _STORY_PROMPTS.get(
         model_id, _STORY_PROMPTS[FALLBACK_STORY_MODEL])
@@ -162,26 +173,38 @@ def text2story(text):
     subject = _extract_subject(text)
     prompt = template.format(subject=subject)
 
-    outputs: list[Any] = story_gen(
-        prompt,
-        max_new_tokens=120,
-        do_sample=True,
-        temperature=0.8,
-        top_k=50,
-        top_p=0.92,
-        repetition_penalty=1.15,
-        pad_token_id=story_gen.tokenizer.eos_token_id,
-    )
+    # --- 1. Generate ---
+    gen_kwargs: dict[str, Any] = {
+        "max_new_tokens": 160,
+        "do_sample": True,
+        "temperature": 0.85,
+        "top_k": 50,
+        "top_p": 0.95,
+        "repetition_penalty": 1.15,
+        "no_repeat_ngram_size": 3,
+    }
+    # Only pass pad_token_id when the tokenizer actually has a pad token.
+    tok = getattr(story_gen, "tokenizer", None)
+    if tok is not None and getattr(tok, "pad_token_id", None) is not None:
+        gen_kwargs["pad_token_id"] = tok.pad_token_id
+
+    outputs: list[Any] = story_gen(prompt, **gen_kwargs)
     generated = str(outputs[0].get("generated_text", ""))
 
+    # --- 2. Strip the prompt echo ---
     if prompt and generated.startswith(prompt):
         generated = generated[len(prompt):]
 
+    # --- 3. Clean whitespace ---
     generated = re.sub(r"\s+", " ", generated).strip()
+
+    # --- 4. Repair truncation ---
+    generated = _repair_story_end(generated)
+
+    # --- 5. Trim to target length on sentence boundary ---
+    #     Hard cap of 100 words; never cut mid-sentence.
     generated = _truncate_to_word_count(generated, low=50, high=100)
 
-    if generated and not generated.endswith((".", "!", "?")):
-        generated = generated.rstrip(".") + "."
     return generated
 
 
@@ -213,30 +236,93 @@ def _extract_subject(caption: str) -> str:
 
 
 def _truncate_to_word_count(text: str, *, low: int, high: int) -> str:
-    """Trim to <= high words on a sentence boundary, pad to >= low words."""
+    """Trim to <= high words, always ending on a COMPLETE sentence.
+
+    Completeness beats length: if trimming to `high` would leave a
+    dangling clause, we back off to the last full sentence instead.
+    Only pads to `low` words if the model produced less than that.
+    """
     if not text:
         return text
 
-    sentences = re.split(r"(?<=[.!?])\s+", text)
-    kept, count = [], 0
+    # Split into sentences, keeping the terminal punctuation.
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    sentences = [s for s in sentences if s.strip()]
+    if not sentences:
+        return text
+
+    kept: list[str] = []
+    count = 0
     for s in sentences:
         n = len(s.split())
+        # Would this sentence push us past the hard cap?
         if count + n > high and kept:
+            # Stop BEFORE this sentence — never mid-sentence.
             break
+        # If it's the very first sentence and it's already over the cap,
+        # take it anyway (better one long sentence than nothing).
         kept.append(s)
         count += n
 
     out = " ".join(kept).strip()
+
+    # Only pad if the model produced too little to begin with.
     safety = 0
     while 0 < len(out.split()) < low and safety < 3:
         out += _HAPPY_ENDING
         safety += 1
+
     return out
 
+
+_TRAILING_ARTICLE = re.compile(
+    r"\b(a|an|the|and|but|or|so|because|with|for|to|of|in|on|at|"
+    r"was|were|is|are|be|been|being)\s*$",
+    re.IGNORECASE,
+)
+_DANGLING_LETTER = re.compile(r"\s+[A-Z]\.\s*$")
+
+
+def _repair_story_end(text: str) -> str:
+    """Fix ragged endings: dangling articles, trailing single letters,
+    missing punctuation. Trims back to the last COMPLETE sentence
+    rather than stapling a period onto a fragment."""
+    if not text:
+        return text
+
+    out = text.strip()
+
+    # Drop a lone trailing letter like " A." (mid-word generation cutoff)
+    out = _DANGLING_LETTER.sub("", out).rstrip()
+
+    # If the story doesn't end on sentence punctuation, trim back to
+    # the last complete sentence — never staple a period onto a fragment.
+    if out and not out.endswith((".", "!", "?")):
+        last_punct = max(
+            out.rfind("."),
+            out.rfind("!"),
+            out.rfind("?"),
+        )
+        if last_punct > 0:
+            out = out[: last_punct + 1].rstrip()
+        # If there's truly no sentence end yet, leave as-is so the
+        # downstream truncation can still pick a boundary or pad.
+
+    # Drop a dangling conjunction / article at the very end
+    out = _TRAILING_ARTICLE.sub("", out).rstrip()
+
+    # Guarantee a warm, complete-feeling ending for a kids' story
+    if not re.search(
+        r"(happily ever after|the end)\s*[.!]?\s*$", out, re.IGNORECASE
+    ):
+        out = out.rstrip() + _HAPPY_ENDING
+
+    return out
 
 # =============================================================================
 # 4. UI — Storybook spread (left page = upload, right page = story)
 # =============================================================================
+
 
 # ---------- Floating background emoji + rainbow title ----------
 st.markdown(
@@ -373,6 +459,17 @@ with page_r:
         )
         st.markdown(
             f'<div class="story-text">{story}</div>',
+            unsafe_allow_html=True,
+        )
+
+        # ---- Word count chip ----
+        _wc = len(story.split())
+        st.markdown(
+            f'<div class="word-count">'
+            f'<span class="wc-emoji">📝</span>'
+            f'<span class="wc-num">{_wc}</span>'
+            f'<span class="wc-sep">words</span>'
+            f'</div>',
             unsafe_allow_html=True,
         )
 

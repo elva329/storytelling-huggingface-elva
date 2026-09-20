@@ -311,7 +311,7 @@ with page_l:
         st.image(image, use_container_width=True)
 
         make_story = st.button(
-            "🎨  Make My Story!",
+            "Make My Story!",
             type="primary",
             use_container_width=True,
             help="Make some magic ✨",
@@ -354,28 +354,57 @@ with page_r:
 
         st.audio(audio_bytes, format="audio/mp3")
 
+        # The two download buttons are styled by [style.css] via a
+        # `data-hook` attribute that a tiny JS shim stamps onto each
+        # wrapper in document order. Streamlit does NOT expose `key=` on
+        # the DOM, so we inject the hook client-side.
         dl1, dl2 = st.columns(2)
         with dl1:
             st.download_button(
-                "🔊  Save the voice",
+                "Save the voice",
                 data=audio_bytes,
                 file_name="storyspark_story.mp3",
-                mime="audio/mpeg",
+                mime="audio/mp3",
                 use_container_width=True,
                 key="dl_mp3",
             )
         with dl2:
             st.download_button(
-                "📜  Save the story",
+                "Save the story",
                 data=story.encode("utf-8"),
                 file_name="storyspark_story.txt",
                 mime="text/plain",
                 use_container_width=True,
                 key="dl_txt",
             )
+        # JS shim: stamp the two stDownloadButton wrappers with
+        # data-hook="dl_mp3" / "dl_txt" so the CSS in style.css can target
+        # each one. Runs on a MutationObserver so it survives Streamlit
+        # re-renders. Injected via st.html (raw HTML in the main DOM —
+        # unlike components.v1.html, which sandboxes scripts in an iframe).
+        st.html(
+            """<script>
+            (function () {
+              function stamp() {
+                var btns = document.querySelectorAll(
+                  '[data-testid="stDownloadButton"]:not([data-hook])'
+                );
+                var hooks = ['dl_mp3', 'dl_txt'];
+                btns.forEach(function (b, i) {
+                  if (i < hooks.length) b.setAttribute('data-hook', hooks[i]);
+                });
+              }
+              stamp();
+              new MutationObserver(stamp).observe(document.body, {
+                childList: true, subtree: true,
+              });
+            })();
+            </script>""",
+            unsafe_allow_javascript=True,
+        )
 
         if st.button(
-            "🎈  One more story!",
+            "One more story!",
             key="reset_btn",
             use_container_width=True,
         ):

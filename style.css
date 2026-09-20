@@ -401,10 +401,16 @@ button[kind="primary"]:disabled::before {
 }
 
 /* =================================================================
+    DOWNLOAD BUTTONS — sky blue (voice) & coral (story), compact
+    ================================================================= */
+
+/* =================================================================
    DOWNLOAD BUTTONS — sky blue (voice) & coral (story), compact
    ================================================================= */
 
-/* Base style for ALL download buttons */
+/* (Layout is handled by st.columns(2) in app.py — no extra flex needed.) */
+
+/* Base style for ALL download buttons (chrome only — colors set below) */
 [data-testid="stDownloadButton"] > button {
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
     font-size: 0.98rem !important;
@@ -425,6 +431,7 @@ button[kind="primary"]:disabled::before {
     gap: 0.5rem !important;
     transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
     background-image: none !important;
+    background-color: transparent !important;
 }
 
 /* Icon badge: shared base */
@@ -442,46 +449,39 @@ button[kind="primary"]:disabled::before {
     box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45);
 }
 
-/* --- Save the voice (sky blue) + music-note icon --- */
-[data-testid="stDownloadButton"]:has(button[title*="Save the voice"]) > button,
-[data-testid="stDownloadButton"]:nth-of-type(1) > button {
+/* --- Save the voice (sky blue) + music-note icon ---
+   The JS shim in app.py stamps `data-hook="dl_mp3"` on this wrapper. */
+[data-testid="stDownloadButton"][data-hook="dl_mp3"] > button {
     background: linear-gradient(180deg, #6fd1ff 0%, #2a9de0 100%) !important;
     box-shadow: 0 3px 0 #1e7fb8, 0 6px 12px rgba(89, 200, 255, 0.32) !important;
 }
-[data-testid="stDownloadButton"]:has(button[title*="Save the voice"]) > button::before,
-[data-testid="stDownloadButton"]:nth-of-type(1) > button::before {
+[data-testid="stDownloadButton"][data-hook="dl_mp3"] > button::before {
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 18V5l12-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='18' cy='16' r='3'/></svg>") !important;
 }
-[data-testid="stDownloadButton"]:has(button[title*="Save the voice"]) > button:hover,
-[data-testid="stDownloadButton"]:nth-of-type(1) > button:hover {
+[data-testid="stDownloadButton"][data-hook="dl_mp3"] > button:hover {
     transform: translateY(-1px);
     filter: brightness(1.05);
     box-shadow: 0 5px 0 #1e7fb8, 0 9px 16px rgba(89, 200, 255, 0.42) !important;
 }
-[data-testid="stDownloadButton"]:has(button[title*="Save the voice"]) > button:active,
-[data-testid="stDownloadButton"]:nth-of-type(1) > button:active {
+[data-testid="stDownloadButton"][data-hook="dl_mp3"] > button:active {
     transform: translateY(2px);
     box-shadow: 0 1px 0 #1e7fb8, 0 3px 6px rgba(89, 200, 255, 0.35) !important;
 }
 
 /* --- Save the story (coral pink) + book icon --- */
-[data-testid="stDownloadButton"]:has(button[title*="Save the story"]) > button,
-[data-testid="stDownloadButton"]:nth-of-type(2) > button {
+[data-testid="stDownloadButton"][data-hook="dl_txt"] > button {
     background: linear-gradient(180deg, #ff9bb4 0%, #e54a76 100%) !important;
     box-shadow: 0 3px 0 #b8325a, 0 6px 12px rgba(255, 111, 145, 0.32) !important;
 }
-[data-testid="stDownloadButton"]:has(button[title*="Save the story"]) > button::before,
-[data-testid="stDownloadButton"]:nth-of-type(2) > button::before {
+[data-testid="stDownloadButton"][data-hook="dl_txt"] > button::before {
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 4h7a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H4z'/><path d='M20 4h-7a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H20z'/></svg>") !important;
 }
-[data-testid="stDownloadButton"]:has(button[title*="Save the story"]) > button:hover,
-[data-testid="stDownloadButton"]:nth-of-type(2) > button:hover {
+[data-testid="stDownloadButton"][data-hook="dl_txt"] > button:hover {
     transform: translateY(-1px);
     filter: brightness(1.05);
     box-shadow: 0 5px 0 #b8325a, 0 9px 16px rgba(255, 111, 145, 0.42) !important;
 }
-[data-testid="stDownloadButton"]:has(button[title*="Save the story"]) > button:active,
-[data-testid="stDownloadButton"]:nth-of-type(2) > button:active {
+[data-testid="stDownloadButton"][data-hook="dl_txt"] > button:active {
     transform: translateY(2px);
     box-shadow: 0 1px 0 #b8325a, 0 3px 6px rgba(255, 111, 145, 0.35) !important;
 }

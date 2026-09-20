@@ -1,291 +1,703 @@
 /* ==========================================================================
-   📖  StorySpark — kid-friendly storybook theme (ages 3–10)  🌈🦄
-   Hand-drawn-feeling icons + chunky rounded pastel buttons.
+   📖  StorySpark — storybook theme for kids (ages 3–10)  🌈🦄✨
+   Full optimized stylesheet.
    ========================================================================== */
 
-/* ---------- Design tokens (pastel palette) ---------- */
 :root {
-    --pink:        #ffd6e7;
-    --pink-strong: #ff8fc1;
-    --pink-deep:   #2d2d2d;          /* dark text on pastel — high contrast */
-    --mint:        #c6f0da;
-    --mint-strong: #6ce0ad;
-    --sky:         #cfe7f5;
-    --sky-strong:  #6fb8ff;
-    --peach:       #ffd9b6;
-    --peach-strong:#ffb86c;
-    --cream:       #fff6e0;
-    --ink:         #2d2d2d;
-    --ink-soft:    #5b5b5b;
-    --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-    --btn-shadow:  0 6px 18px rgba(0, 0, 0, 0.12);
-    --card-radius: 24px;
-    --btn-radius:  999px;
-}
-
-/* ---------- Page-wide look ---------- */
-.stApp {
-    background:
-        radial-gradient(at top left,  var(--pink)  0, transparent 40%),
-        radial-gradient(at top right, var(--sky)   0, transparent 40%),
-        radial-gradient(at bottom,    var(--mint)  0, transparent 50%),
-        var(--cream);
-    background-attachment: fixed;
-    font-family: 'Quicksand', 'Nunito', 'Comic Sans MS', system-ui, sans-serif;
-    color: var(--ink);
-}
-
-/* ---------- Headings ---------- */
-h1, h2, h3, h4 {
-    font-family: 'Baloo 2', 'Comic Sans MS', cursive, sans-serif;
-    letter-spacing: 0.01em;
-    margin: 0.2rem 0 !important;
-}
-h1 { font-size: 2.1rem !important; }
-h2 { font-size: 1.45rem !important; }
-h3 { font-size: 1.18rem !important; }
-
-/* ---------- Hero banner ---------- */
-.hero {
-    text-align: center;
-    padding: 0.8rem 0.4rem 0.3rem;
-}
-.hero-title {
-    font-size: 3.2rem;
-    font-weight: 800;
-    background: linear-gradient(90deg,
-        var(--pink-strong), var(--peach-strong), var(--sky-strong), #b06bff);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    line-height: 1;
-    margin: 0;
-}
-.hero-tag {
-    font-size: 1.05rem;
-    color: var(--ink-soft);
-    margin-top: 0.2rem;
-}
-
-/* ---------- Cards ---------- */
-.card {
-    background: rgba(255, 255, 255, 0.92);
-    border: 2px solid #fff;
-    border-radius: var(--card-radius);
-    padding: 1rem 1.2rem;
-    margin: 0.6rem 0;
-    box-shadow: var(--card-shadow);
-}
-.card.step-1 { background: linear-gradient(135deg, #fff 70%, var(--pink) 100%); }
-.card.step-2 { background: linear-gradient(135deg, #fff 70%, var(--mint) 100%); }
-.card.step-3 { background: linear-gradient(135deg, #fff 70%, var(--sky)  100%); }
-
-.step-header {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin: 0 0 0.2rem 0;
-    font-weight: 800;
-    font-size: 1.15rem;
-}
-.step-blurb {
-    color: var(--ink-soft);
-    font-size: 0.95rem;
-    margin: 0 0 0.6rem 2.6rem;       /* indent past the numbered chip */
-}
-.step-number {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    background: var(--pink-strong);
-    color: #fff;
-    border-radius: 999px;
-    font-weight: 800;
-    box-shadow: 0 4px 10px rgba(255, 111, 181, 0.4);
-}
-.card.step-2 .step-number { background: var(--mint-strong); box-shadow: 0 4px 10px rgba(92, 217, 160, 0.4); }
-.card.step-3 .step-number { background: var(--sky-strong);  box-shadow: 0 4px 10px rgba(111, 184, 255, 0.4); }
-
-/* ---------- Section label (icon + text) used inside Step 3 ----- */
-/* (.section-label reserved for future use) */
-
-/* ---------- Image preview ---------- */
-.stImage img {
-    border-radius: 16px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
-    max-height: 32vh;
-    object-fit: contain;
-}
-.helper {
-    color: var(--ink-soft);
-    font-size: 0.95rem;
-    margin: 0.3rem 0;
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    background: #fff;
-    padding: 0.7rem 1rem;
-    border-radius: 14px;
-    border: 2px dashed var(--pink-strong);
+    --coral:        #ff6f91;
+    --coral-dark:   #e54a76;
+    --coral-deep:   #b8325a;
+    --coral-deeper: #8c2242;
+    --sunny:        #ffcc33;
+    --grass:        #5ed99a;
+    --grass-dark:   #2ea36f;
+    --sky:          #59c8ff;
+    --sky-dark:     #2a9de0;
+    --grape:        #b06bff;
+    --paper:        #fffef9;
+    --ink:          #2f2a3a;
+    --ink-soft:     #6a6478;
 }
 
 /* =================================================================
-   BUTTONS — chunky, rounded, pastel fill, dark text, soft shadow.
+   PAGE BACKGROUND
    ================================================================= */
-
-/* Primary "Make My Story" — large mint button */
-.stButton > button {
-    border-radius: var(--btn-radius) !important;
-    font-size: 1.2rem !important;
-    font-weight: 800 !important;
-    padding: 0.8rem 1.6rem !important;
-    color: var(--ink) !important;
-    border: 3px solid #fff !important;
-    background: linear-gradient(180deg, #fff 0%, var(--mint) 100%) !important;
-    box-shadow: var(--btn-shadow);
-    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-    min-height: 58px;             /* chunky for small fingers */
-    width: 100%;
-    margin: 0.15rem 0 0.4rem;
-    letter-spacing: 0.01em;
-}
-.stButton > button:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 12px 28px rgba(108, 224, 173, 0.4);
-    filter: brightness(1.04);
-}
-.stButton > button:active {
-    transform: translateY(0) scale(0.99);
-}
-.stButton > button:focus-visible {
-    outline: 3px solid var(--peach-strong);
-    outline-offset: 2px;
-}
-.stButton > button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    filter: grayscale(0.4);
-    box-shadow: none;
-}
-
-/* Primary CTA: same chunky look but pops in pink */
-.stButton > button[kind="primary"] {
-    background: linear-gradient(180deg, #fff 0%, var(--pink-strong) 100%) !important;
-    color: #fff !important;
-}
-.stButton > button[kind="primary"]:hover {
-    box-shadow: 0 14px 32px rgba(255, 111, 181, 0.45);
-}
-
-/* Reset button (peer of primary, secondary action) */
-.stButton > button[key="reset_btn"] {
-    background: linear-gradient(180deg, #fff 0%, var(--peach) 100%) !important;
-}
-
-/* ---------- Download buttons ----------
-   Same chunky treatment but slightly slimmer (two sit side-by-side).
-*/
-.stDownloadButton > button {
-    border-radius: var(--btn-radius) !important;
-    font-size: 1.05rem !important;
-    font-weight: 800 !important;
-    padding: 0.7rem 1.2rem !important;
-    color: var(--ink) !important;
-    background: linear-gradient(180deg, #fff 0%, var(--sky) 100%) !important;
-    border: 3px solid #fff !important;
-    box-shadow: var(--btn-shadow);
-    min-height: 50px;
-    width: 100%;
-    margin: 0.2rem 0;
-}
-.stDownloadButton > button:hover {
-    transform: translateY(-1px) scale(1.02);
-    box-shadow: 0 10px 24px rgba(111, 184, 255, 0.4);
-    filter: brightness(1.04);
-}
-
-/* ---------- File uploader ----------
-   Make the drag-and-drop feel chunky + friendly.
-*/
-[data-testid="stFileUploader"] {
-    border: 3px dashed var(--pink-strong) !important;
-    border-radius: 16px !important;
-    padding: 0.7rem !important;
-    background: #fff !important;
-}
-[data-testid="stFileUploader"] section {
-    padding: 0.4rem !important;
-}
-[data-testid="stFileUploaderDropzone"] {
-    background: var(--pink) !important;
-    border-radius: 12px !important;
-    color: var(--ink) !important;
-    font-weight: 700 !important;
-}
-
-/* ---------- Toggle ---------- */
-.stToggle label {
-    font-weight: 700 !important;
-    font-size: 1rem !important;
-    color: var(--ink) !important;
-}
-
-/* ---------- Audio player — boxed, prominent ---------- */
-.stAudio {
-    border: 3px solid var(--sky-strong);
-    border-radius: 16px;
-    padding: 0.6rem;
-    background: var(--sky);
-    box-shadow: 0 8px 22px rgba(111, 184, 255, 0.30);
-    margin: 0.5rem 0 1rem;
-}
-.stAudio audio { width: 100%; border-radius: 12px; }
-
-/* ---------- Storybook "page" ---------- */
-.storybook-page {
-    background: var(--cream);
-    border: 4px solid transparent;
-    background-image:
-        linear-gradient(var(--cream), var(--cream)),
-        linear-gradient(135deg, var(--pink-strong), var(--peach-strong), var(--mint-strong), var(--sky-strong));
-    background-origin: border-box;
-    background-clip: padding-box, border-box;
-    border-radius: 22px;
-    padding: 1.4rem 1.6rem;
-    margin: 0.6rem 0;
-    box-shadow: var(--card-shadow);
-    font-family: 'Baloo 2', 'Comic Sans MS', system-ui, sans-serif;
-    font-size: 1.3rem;
-    line-height: 1.7;
+.stApp {
+    background:
+        radial-gradient(ellipse 60% 40% at 8%  12%, #ffe3ee 0, transparent 60%),
+        radial-gradient(ellipse 55% 40% at 92% 15%, #d9f3ff 0, transparent 60%),
+        radial-gradient(ellipse 60% 45% at 15% 92%, #d6f8e3 0, transparent 60%),
+        radial-gradient(ellipse 55% 45% at 88% 90%, #ffefc2 0, transparent 60%),
+        linear-gradient(180deg, #fff8ec 0%, #fff4e4 100%);
+    background-attachment: fixed;
+    font-family: 'Baloo 2', 'Fredoka', 'Comic Sans MS', system-ui, sans-serif;
     color: var(--ink);
 }
-.storybook-page .badge {
-    display: inline-flex;
+
+/* =================================================================
+   FULL-WIDTH LAYOUT
+   ================================================================= */
+.main .block-container,
+[data-testid="stAppViewContainer"] .block-container,
+section.main > div.block-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0.4rem 2rem 0.2rem 2rem !important;
+    margin: 0 auto !important;
+}
+
+[data-testid="stHorizontalBlock"] {
+    gap: 1.4rem !important;
+    align-items: stretch !important;
+}
+
+/* =================================================================
+   TWO FACING PAGES
+   ================================================================= */
+[data-testid="column"] {
+    width: 50% !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    padding: 1.1rem 1.4rem 2.4rem;
+    min-height: 66vh;
+    border-radius: 26px;
+    background: var(--paper);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+[data-testid="column"]:nth-of-type(1) {
+    background: linear-gradient(160deg, #fffef9 60%, #ffe9f1 100%);
+}
+[data-testid="column"]:nth-of-type(2) {
+    background: linear-gradient(160deg, #fffef9 60%, #e6f6ff 100%);
+}
+[data-testid="column"] [data-testid="column"] {
+    min-height: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+/* =================================================================
+   FLOATING BACKGROUND EMOJI
+   ================================================================= */
+.scene {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+.float {
+    position: absolute;
+    font-size: 3rem;
+    opacity: 0.55;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.06));
+    animation: drift 9s ease-in-out infinite;
+}
+.f1 { top: 6%;     left: 3%;   animation-delay: 0s;   font-size: 3.4rem; }
+.f2 { top: 12%;    right: 4%;  animation-delay: 1.2s; font-size: 2.6rem; }
+.f3 { top: 55%;    left: 2%;   animation-delay: 2.1s; font-size: 3rem; }
+.f4 { top: 40%;    right: 2%;  animation-delay: 0.6s; font-size: 3.2rem; }
+.f5 { bottom: 8%;  left: 8%;   animation-delay: 1.8s; font-size: 2.4rem; }
+.f6 { bottom: 12%; right: 9%;  animation-delay: 2.4s; font-size: 2.8rem; }
+
+@keyframes drift {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50%      { transform: translateY(-12px) rotate(3deg); }
+}
+
+/* =================================================================
+   RAINBOW TITLE
+   ================================================================= */
+.title {
+    text-align: center;
+    padding: 0.1rem 0 0.4rem;
+    position: relative;
+    z-index: 1;
+}
+.title-main {
+    font-family: 'Baloo 2', 'Fredoka', cursive;
+    font-size: 3.2rem;
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(90deg,
+        var(--coral) 0%, var(--sunny) 25%, var(--grass) 50%,
+        var(--sky) 75%, var(--grape) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.06));
+    animation: wiggle 5s ease-in-out infinite;
+}
+@keyframes wiggle {
+    0%, 100% { transform: rotate(-1deg); }
+    50%      { transform: rotate(1deg);  }
+}
+.title-sub {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--ink-soft);
+    margin-top: 0.15rem;
+}
+
+/* =================================================================
+   PAGE HEADINGS
+   ================================================================= */
+.page-heading {
+    display: flex;
     align-items: center;
-    gap: 0.45rem;
-    background: var(--pink);
-    color: var(--pink-deep);
-    padding: 0.25rem 0.9rem;
-    border-radius: 999px;
-    font-size: 0.95rem;
+    gap: 0.6rem;
+    font-family: 'Baloo 2', 'Fredoka', cursive;
+    font-size: 1.55rem;
     font-weight: 800;
-    margin-bottom: 0.5rem;
+    color: var(--ink);
+    margin-bottom: 0.7rem;
+}
+.page-emoji {
+    font-size: 1.9rem;
+    filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.10));
 }
 
-/* ---------- Hide Streamlit chrome (claws back ~56 vh) ---------- */
+/* =================================================================
+   FILE UPLOADER
+   ================================================================= */
+[data-testid="stFileUploader"] {
+    border: 4px dashed var(--coral) !important;
+    border-radius: 24px !important;
+    padding: 0.5rem !important;
+    background: linear-gradient(135deg, #fff5f8 0%, #ffe8f0 100%) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+[data-testid="stFileUploader"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 111, 145, 0.20);
+}
+[data-testid="stFileUploaderDropzone"] {
+    background: transparent !important;
+    border-radius: 18px !important;
+    color: var(--ink) !important;
+    font-family: 'Baloo 2', 'Fredoka', cursive !important;
+    font-weight: 800 !important;
+    font-size: 1.1rem !important;
+    padding: 1rem !important;
+    min-height: 110px !important;
+}
+[data-testid="stFileUploaderDropzone"] button {
+    font-family: 'Baloo 2', 'Fredoka', cursive !important;
+    font-weight: 800 !important;
+    background: var(--coral) !important;
+    color: #fff !important;
+    border: 3px solid #fff !important;
+    border-radius: 999px !important;
+    padding: 0.5rem 1.2rem !important;
+    box-shadow: 0 4px 0 var(--coral-dark) !important;
+}
+[data-testid="stFileUploaderDropzone"] button:hover {
+    background: var(--coral-dark) !important;
+    transform: translateY(-1px);
+}
+
+/* =================================================================
+   IMAGE PREVIEW
+   ================================================================= */
+.stImage img {
+    border-radius: 14px;
+    border: 8px solid #fff;
+    box-shadow: 0 6px 0 rgba(0, 0, 0, 0.06), 0 14px 26px rgba(0, 0, 0, 0.12);
+    max-height: 30vh;
+    width: 100%;
+    object-fit: contain;
+    transform: rotate(-1.2deg);
+    transition: transform 0.2s ease;
+}
+.stImage img:hover { transform: rotate(0deg) scale(1.01); }
+
+/* =================================================================
+   WAIT HINT — shown before a picture is uploaded
+   ================================================================= */
+.wait-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    background: #fff7fa;
+    border: 3px dashed #ffb3c8;
+    border-radius: 18px;
+    font-family: 'Baloo 2', cursive;
+    font-weight: 700;
+    font-size: 1.02rem;
+    color: var(--ink-soft);
+    animation: floaty 3s ease-in-out infinite;
+}
+.wait-emoji {
+    font-size: 1.5rem;
+}
+
+/* =================================================================
+   DEFAULT BUTTONS
+   ================================================================= */
+.stButton > button {
+    font-family: 'Baloo 2', 'Fredoka', cursive !important;
+    border-radius: 999px !important;
+    font-size: 1.05rem !important;
+    font-weight: 800 !important;
+    padding: 0.7rem 1.5rem !important;
+    color: #fff !important;
+    border: 4px solid #fff !important;
+    background: linear-gradient(180deg, var(--grass) 0%, var(--grass-dark) 100%) !important;
+    box-shadow: 0 6px 0 var(--grass-dark), 0 12px 22px rgba(94, 217, 154, 0.35);
+    min-height: 58px !important;
+    width: 100%;
+    margin: 0.3rem 0 0.2rem;
+    text-shadow: 0 2px 3px rgba(0, 0, 0, 0.18);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.stButton > button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 9px 0 var(--grass-dark), 0 16px 26px rgba(94, 217, 154, 0.45);
+}
+.stButton > button:active {
+    transform: translateY(3px);
+    box-shadow: 0 3px 0 var(--grass-dark);
+}
+.stButton > button:focus-visible {
+    outline: 4px dashed var(--sunny);
+    outline-offset: 4px;
+}
+
+/* =================================================================
+   PRIMARY MAGIC BUTTON — slim, with a wand icon badge
+   ================================================================= */
+.stButton:has(button[kind="primary"]) {
+    display: flex;
+    justify-content: center;
+    margin: 0.5rem 0 0.3rem;
+}
+
+.stButton:has(button[kind="primary"]) [data-testid="stButton"] {
+    width: auto !important;
+    display: inline-block !important;
+}
+
+.stButton > button[kind="primary"],
+button[kind="primary"],
+button[data-testid="baseButton-primary"] {
+    width: auto !important;
+    min-width: 220px !important;
+    max-width: 90% !important;
+    min-height: 52px !important;
+    height: 52px !important;
+    padding: 0 1.6rem !important;
+    border-radius: 999px !important;
+    border: 4px solid #fff !important;
+
+    font-family: 'Baloo 2', 'Fredoka', cursive !important;
+    font-size: 1.1rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.02em !important;
+    color: #fff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.20) !important;
+
+    background:
+        radial-gradient(circle at 30% 20%, #ffb3c8 0%, transparent 50%),
+        linear-gradient(180deg, #ff8bab 0%, #ff6f91 45%, #e54a76 100%) !important;
+
+    box-shadow:
+        0 4px 0 var(--coral-deep),
+        0 6px 0 var(--coral-deeper),
+        0 10px 18px rgba(255, 111, 145, 0.38) !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.55rem !important;
+
+    animation: magic-pulse 2.4s ease-in-out infinite;
+    transform-origin: center;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    position: relative;
+    overflow: visible;
+}
+
+/* Wand icon badge on the magic button */
+.stButton > button[kind="primary"]::before,
+button[kind="primary"]::before {
+    content: "" !important;
+    display: inline-block !important;
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 50% !important;
+    background-color: rgba(255, 255, 255, 0.22) !important;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M15 4V2'/><path d='M15 16v-2'/><path d='M8 9h2'/><path d='M20 9h2'/><path d='M17.8 11.8 19 13'/><path d='M15 9h.01'/><path d='M17.8 6.2 19 5'/><path d='m3 21 9-9'/><path d='M12.2 6.2 11 5'/></svg>") !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 14px 14px !important;
+    flex: 0 0 auto !important;
+    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45);
+}
+
+/* Remove the old 🌟 pseudo-element */
+.stButton > button[kind="primary"]::after,
+button[kind="primary"]::after {
+    content: none !important;
+}
+
+/* Hover */
+.stButton > button[kind="primary"]:not(:disabled):hover,
+button[kind="primary"]:not(:disabled):hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+        0 6px 0 var(--coral-deep),
+        0 8px 0 var(--coral-deeper),
+        0 16px 24px rgba(255, 111, 145, 0.50) !important;
+    animation-play-state: paused;
+}
+
+/* Active / press */
+.stButton > button[kind="primary"]:not(:disabled):active,
+button[kind="primary"]:not(:disabled):active {
+    transform: translateY(3px) scale(0.98);
+    box-shadow:
+        0 1px 0 var(--coral-deep),
+        0 2px 0 var(--coral-deeper),
+        0 6px 10px rgba(255, 111, 145, 0.40) !important;
+}
+
+/* Focus */
+.stButton > button[kind="primary"]:focus-visible {
+    outline: 4px dashed var(--sunny) !important;
+    outline-offset: 5px !important;
+}
+
+@keyframes magic-pulse {
+    0%, 100% { transform: scale(1)    rotate(-0.3deg); }
+    50%      { transform: scale(1.02) rotate(0.3deg);  }
+}
+
+/* Disabled magic button */
+.stButton > button[kind="primary"]:disabled,
+button[kind="primary"]:disabled {
+    background:
+        radial-gradient(circle at 30% 20%, #ffe0ea 0%, transparent 50%),
+        linear-gradient(180deg, #ffc9d8 0%, #fbaec4 100%) !important;
+    color: #ffffffdd !important;
+    border: 4px solid #ffffffdd !important;
+    box-shadow:
+        0 4px 0 #d68a9e,
+        0 6px 0 #b56e82,
+        0 10px 16px rgba(0, 0, 0, 0.08) !important;
+    opacity: 0.95 !important;
+    filter: none !important;
+    cursor: not-allowed !important;
+    animation: none !important;
+    transform: none !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15) !important;
+}
+.stButton > button[kind="primary"]:disabled::before,
+button[kind="primary"]:disabled::before {
+    opacity: 0.6;
+}
+
+/* =================================================================
+   DOWNLOAD BUTTONS — sky blue (voice) & coral (story), compact
+   ================================================================= */
+.stDownloadButton > button {
+    font-family: 'Baloo 2', 'Fredoka', cursive !important;
+    font-size: 0.98rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.01em !important;
+    color: #fff !important;
+    border: 3px solid #fff !important;
+    border-radius: 999px !important;
+    min-height: 46px !important;
+    height: 46px !important;
+    padding: 0 1rem 0 0.6rem !important;
+    width: 100%;
+    margin: 0.15rem 0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem !important;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+    background-image: none !important;
+}
+
+/* Icon badge: shared base */
+.stDownloadButton > button::before {
+    content: "" !important;
+    display: inline-block !important;
+    width: 26px !important;
+    height: 26px !important;
+    border-radius: 50% !important;
+    background-color: rgba(255, 255, 255, 0.22) !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 15px 15px !important;
+    flex: 0 0 auto !important;
+    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45);
+}
+
+/* --- Save the voice (sky blue) + music-note icon --- */
+.stDownloadButton > button[key="dl_mp3"] {
+    background: linear-gradient(180deg, #6fd1ff 0%, #2a9de0 100%) !important;
+    box-shadow: 0 3px 0 #1e7fb8, 0 6px 12px rgba(89, 200, 255, 0.32) !important;
+}
+.stDownloadButton > button[key="dl_mp3"]::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 18V5l12-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='18' cy='16' r='3'/></svg>") !important;
+}
+.stDownloadButton > button[key="dl_mp3"]:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+    box-shadow: 0 5px 0 #1e7fb8, 0 9px 16px rgba(89, 200, 255, 0.42) !important;
+}
+.stDownloadButton > button[key="dl_mp3"]:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #1e7fb8, 0 3px 6px rgba(89, 200, 255, 0.35) !important;
+}
+
+/* --- Save the story (coral pink) + book icon --- */
+.stDownloadButton > button[key="dl_txt"] {
+    background: linear-gradient(180deg, #ff9bb4 0%, #e54a76 100%) !important;
+    box-shadow: 0 3px 0 #b8325a, 0 6px 12px rgba(255, 111, 145, 0.32) !important;
+}
+.stDownloadButton > button[key="dl_txt"]::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 4h7a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H4z'/><path d='M20 4h-7a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H20z'/></svg>") !important;
+}
+.stDownloadButton > button[key="dl_txt"]:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+    box-shadow: 0 5px 0 #b8325a, 0 9px 16px rgba(255, 111, 145, 0.42) !important;
+}
+.stDownloadButton > button[key="dl_txt"]:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #b8325a, 0 3px 6px rgba(255, 111, 145, 0.35) !important;
+}
+
+/* =================================================================
+   RESET BUTTON ("One more story!") — mint green + refresh icon
+   ================================================================= */
+.stButton > button[key="reset_btn"] {
+    font-family: 'Baloo 2', 'Fredoka', cursive !important;
+    font-size: 0.98rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.01em !important;
+    color: #fff !important;
+    border: 3px solid #fff !important;
+    border-radius: 999px !important;
+    min-height: 46px !important;
+    height: 46px !important;
+    padding: 0 1rem 0 0.6rem !important;
+    width: 100%;
+    margin: 0.35rem 0 0.15rem;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem !important;
+    background: linear-gradient(180deg, #6fe0a6 0%, #2ea36f 100%) !important;
+    box-shadow: 0 3px 0 #1e7f53, 0 6px 12px rgba(94, 217, 154, 0.32) !important;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+.stButton > button[key="reset_btn"]::before {
+    content: "" !important;
+    display: inline-block !important;
+    width: 26px !important;
+    height: 26px !important;
+    border-radius: 50% !important;
+    background-color: rgba(255, 255, 255, 0.22) !important;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12a9 9 0 0 1 15-6.7L21 8'/><path d='M21 3v5h-5'/><path d='M21 12a9 9 0 0 1-15 6.7L3 16'/><path d='M3 21v-5h5'/></svg>") !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 15px 15px !important;
+    flex: 0 0 auto !important;
+    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45);
+}
+.stButton > button[key="reset_btn"]:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+    box-shadow: 0 5px 0 #1e7f53, 0 9px 16px rgba(94, 217, 154, 0.42) !important;
+}
+.stButton > button[key="reset_btn"]:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #1e7f53, 0 3px 6px rgba(94, 217, 154, 0.35) !important;
+}
+
+/* =================================================================
+   STORY TEXT
+   ================================================================= */
+.story-text {
+    font-family: 'Baloo 2', 'Comic Sans MS', system-ui, sans-serif;
+    font-size: 1.25rem;
+    line-height: 1.6;
+    color: var(--ink);
+    background: #fffdf6;
+    border-radius: 20px;
+    padding: 1.1rem 1.3rem;
+    margin: 0.3rem 0 0.7rem;
+    box-shadow: inset 0 0 0 2px rgba(255, 204, 51, 0.25);
+    max-height: 32vh;
+    overflow-y: auto;
+}
+
+/* =================================================================
+   AUDIO PLAYER
+   ================================================================= */
+.stAudio {
+    border: 5px solid var(--sky);
+    border-radius: 22px;
+    padding: 0.4rem;
+    background: #e6f6ff;
+    box-shadow: 0 6px 0 var(--sky-dark), 0 12px 22px rgba(89, 200, 255, 0.30);
+    margin: 0.3rem 0 0.7rem;
+}
+.stAudio audio { width: 100%; height: 44px; border-radius: 14px; }
+
+/* =================================================================
+   EMPTY STATE
+   ================================================================= */
+.page-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 58vh;
+    background: transparent;
+    padding: 1rem;
+}
+.empty-emoji {
+    font-size: 5rem;
+    line-height: 1;
+    animation: floaty 3.5s ease-in-out infinite;
+}
+@keyframes floaty {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
+}
+.empty-text {
+    font-family: 'Baloo 2', cursive;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--ink);
+    margin-top: 0.6rem;
+}
+.empty-hint {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-top: 0.4rem;
+    max-width: 26rem;
+    line-height: 1.45;
+}
+
+/* =================================================================
+   PROGRESS OVERLAY
+   ================================================================= */
+.progress-card {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    width: min(420px, 80vw);
+    padding: 1.4rem 1.6rem;
+    background: #ffffff;
+    border: 5px solid #fff;
+    border-radius: 26px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18),
+                0 0 0 4px rgba(255, 111, 145, 0.15);
+    text-align: center;
+    font-family: 'Baloo 2', cursive;
+}
+.progress-emoji {
+    font-size: 3.5rem;
+    line-height: 1;
+    animation: floaty 1.4s ease-in-out infinite;
+}
+.progress-bar {
+    height: 18px;
+    background: #ffe8f0;
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 1rem 0 0.7rem;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--coral), var(--sunny), var(--grass), var(--sky));
+    background-size: 200% 100%;
+    border-radius: 999px;
+    transition: width 0.4s ease;
+    animation: shift 2s linear infinite;
+}
+@keyframes shift {
+    0%   { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+}
+.progress-text {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--ink);
+}
+
+/* =================================================================
+   HIDE STREAMLIT CHROME
+   ================================================================= */
 header[data-testid="stHeader"] { display: none; }
-footer, [data-testid="stToolbar"], [data-testid="stDecoration"] { visibility: hidden; }
-.main .block-container {
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-    max-width: 880px;
+footer,
+[data-testid="stToolbar"],
+[data-testid="stDecoration"] { visibility: hidden; }
+
+/* =================================================================
+   FOOTER
+   ================================================================= */
+.footer-bar {
+    position: fixed;
+    bottom: 0.4rem;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-family: 'Baloo 2', cursive;
+    font-weight: 700;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    pointer-events: none;
+    z-index: 5;
 }
 
-/* ---------- Responsive: mobile ---------- */
-@media (max-width: 700px) {
-    .hero-title { font-size: 2.4rem; }
-    .card { padding: 0.8rem 1rem; }
-    .storybook-page { padding: 1.1rem 1.2rem; font-size: 1.15rem; }
-    .step-blurb { margin-left: 2.3rem; }
+/* =================================================================
+   RESPONSIVE
+   ================================================================= */
+@media (max-width: 900px) {
+    .title-main { font-size: 2.2rem; }
+    .title-sub  { font-size: 1rem; }
+
+    [data-testid="column"] {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        min-height: auto;
+        padding: 0.9rem 1rem 2rem;
+    }
+    [data-testid="column"] [data-testid="column"] {
+        padding: 0 !important;
+    }
+
+    .page-heading { font-size: 1.25rem; }
+    .story-text   { max-height: none; font-size: 1.1rem; }
+    .float        { font-size: 2rem; opacity: 0.4; }
+    .empty-emoji  { font-size: 3.5rem; }
+    .page-empty   { min-height: 40vh; }
+
+    .stButton > button[kind="primary"],
+    button[kind="primary"] {
+        min-width: 0 !important;
+        width: 100% !important;
+        font-size: 1.1rem !important;
+        min-height: 50px !important;
+        height: 50px !important;
+        padding: 0 1.4rem !important;
+    }
 }

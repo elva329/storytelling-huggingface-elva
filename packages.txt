@@ -1,4 +1,0 @@
-# Required system packages for Streamlit Cloud deployment
-# Streamlit Cloud uses these to provision the runtime container.
-
-ffmpeg

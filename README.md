@@ -1,3 +1,16 @@
+---
+title: StorySpark
+emoji: 📖
+colorFrom: pink
+colorTo: yellow
+sdk: streamlit
+sdk_version: 1.36.0
+app_file: app.py
+pinned: false
+license: mit
+short_description: Turn any kid's picture into a 50–100-word bedtime story, read aloud.
+---
+
 # 📖 StorySpark — A Storytelling App for Kids (ages 3–10)
 
 > ISOM5240 Deep Learning Business Applications with Python — Individual Assignment

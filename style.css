@@ -403,7 +403,9 @@ button[kind="primary"]:disabled::before {
 /* =================================================================
    DOWNLOAD BUTTONS — sky blue (voice) & coral (story), compact
    ================================================================= */
-.stDownloadButton > button {
+
+/* Base style for ALL download buttons */
+[data-testid="stDownloadButton"] > button {
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
     font-size: 0.98rem !important;
     font-weight: 800 !important;
@@ -426,7 +428,7 @@ button[kind="primary"]:disabled::before {
 }
 
 /* Icon badge: shared base */
-.stDownloadButton > button::before {
+[data-testid="stDownloadButton"] > button::before {
     content: "" !important;
     display: inline-block !important;
     width: 26px !important;
@@ -441,37 +443,45 @@ button[kind="primary"]:disabled::before {
 }
 
 /* --- Save the voice (sky blue) + music-note icon --- */
-.stDownloadButton > button[key="dl_mp3"] {
+[data-testid="stDownloadButton"]:has(button[title*="Save the voice"]) > button,
+[data-testid="stDownloadButton"]:nth-of-type(1) > button {
     background: linear-gradient(180deg, #6fd1ff 0%, #2a9de0 100%) !important;
     box-shadow: 0 3px 0 #1e7fb8, 0 6px 12px rgba(89, 200, 255, 0.32) !important;
 }
-.stDownloadButton > button[key="dl_mp3"]::before {
+[data-testid="stDownloadButton"]:has(button[title*="Save the voice"]) > button::before,
+[data-testid="stDownloadButton"]:nth-of-type(1) > button::before {
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 18V5l12-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='18' cy='16' r='3'/></svg>") !important;
 }
-.stDownloadButton > button[key="dl_mp3"]:hover {
+[data-testid="stDownloadButton"]:has(button[title*="Save the voice"]) > button:hover,
+[data-testid="stDownloadButton"]:nth-of-type(1) > button:hover {
     transform: translateY(-1px);
     filter: brightness(1.05);
     box-shadow: 0 5px 0 #1e7fb8, 0 9px 16px rgba(89, 200, 255, 0.42) !important;
 }
-.stDownloadButton > button[key="dl_mp3"]:active {
+[data-testid="stDownloadButton"]:has(button[title*="Save the voice"]) > button:active,
+[data-testid="stDownloadButton"]:nth-of-type(1) > button:active {
     transform: translateY(2px);
     box-shadow: 0 1px 0 #1e7fb8, 0 3px 6px rgba(89, 200, 255, 0.35) !important;
 }
 
 /* --- Save the story (coral pink) + book icon --- */
-.stDownloadButton > button[key="dl_txt"] {
+[data-testid="stDownloadButton"]:has(button[title*="Save the story"]) > button,
+[data-testid="stDownloadButton"]:nth-of-type(2) > button {
     background: linear-gradient(180deg, #ff9bb4 0%, #e54a76 100%) !important;
     box-shadow: 0 3px 0 #b8325a, 0 6px 12px rgba(255, 111, 145, 0.32) !important;
 }
-.stDownloadButton > button[key="dl_txt"]::before {
+[data-testid="stDownloadButton"]:has(button[title*="Save the story"]) > button::before,
+[data-testid="stDownloadButton"]:nth-of-type(2) > button::before {
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 4h7a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H4z'/><path d='M20 4h-7a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H20z'/></svg>") !important;
 }
-.stDownloadButton > button[key="dl_txt"]:hover {
+[data-testid="stDownloadButton"]:has(button[title*="Save the story"]) > button:hover,
+[data-testid="stDownloadButton"]:nth-of-type(2) > button:hover {
     transform: translateY(-1px);
     filter: brightness(1.05);
     box-shadow: 0 5px 0 #b8325a, 0 9px 16px rgba(255, 111, 145, 0.42) !important;
 }
-.stDownloadButton > button[key="dl_txt"]:active {
+[data-testid="stDownloadButton"]:has(button[title*="Save the story"]) > button:active,
+[data-testid="stDownloadButton"]:nth-of-type(2) > button:active {
     transform: translateY(2px);
     box-shadow: 0 1px 0 #b8325a, 0 3px 6px rgba(255, 111, 145, 0.35) !important;
 }

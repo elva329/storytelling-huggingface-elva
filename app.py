@@ -186,11 +186,11 @@ def text2story(text):
     return generated
 
 
-def text2audio(story_text, *, slow: bool = False):
+def text2audio(story_text):
     """Story text → MP3 audio bytes."""
     if not story_text:
         return b""
-    tts = gTTS(text=story_text, lang="en", slow=slow)
+    tts = gTTS(text=story_text, lang="en")
     buf = io.BytesIO()
     tts.write_to_fp(buf)
     buf.seek(0)
@@ -310,19 +310,6 @@ with page_l:
         image = Image.open(uploaded)
         st.image(image, use_container_width=True)
 
-        st.markdown(
-            '<div class="voice-row">'
-            '<span class="voice-emoji">🐢</span>'
-            '<span class="voice-text">Slow &amp; gentle voice</span>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-        slow_voice = st.toggle(
-            "Slow & gentle voice",
-            value=False,
-            help="Great for very young listeners.",
-            label_visibility="collapsed",
-        )
         make_story = st.button(
             "🎨  Make My Story!",
             type="primary",
@@ -332,7 +319,6 @@ with page_l:
         )
     else:
         image = None
-        slow_voice = False
         make_story = False
         st.markdown(
             '<div class="wait-hint">'
@@ -444,7 +430,7 @@ if make_story and uploaded is not None:
         story = text2story(caption)
 
         _show_progress("🎤", 0.80, "Recording the voice…")
-        audio_bytes = text2audio(story, slow=slow_voice)
+        audio_bytes = text2audio(story)
 
         _show_progress("✅", 1.00, "All done!")
         time.sleep(0.4)

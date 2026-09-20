@@ -403,6 +403,20 @@ with page_l:
             unsafe_allow_html=True,
         )
 
+        # --- If the user cleared the upload, wipe any previous story/audio
+        #     so the right page doesn't keep showing the old result.
+        if st.session_state.story or st.session_state.audio_bytes:
+            for k, v in (
+                ("story", ""),
+                ("audio_bytes", b""),
+                ("caption", ""),
+                ("celebrated", False),
+                ("phase", "idle"),
+                ("progress_step", 0),
+            ):
+                st.session_state[k] = v
+            st.rerun()
+
 # =============================================================================
 #  RIGHT PAGE — Story OR inline loader OR empty state
 # =============================================================================

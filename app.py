@@ -84,22 +84,68 @@ CAPTION_MODEL = "Salesforce/blip-image-captioning-base"
 KID_STORY_MODEL = "roneneldan/TinyStories-33M"
 FALLBACK_STORY_MODEL = "distilgpt2"
 
+# Story-gen prompts per model. TinyStories just needs a seed sentence;
+# distilgpt2 needs an explicit instruction to write a kid's bedtime story.
+_STORY_PROMPTS: dict[str, str] = {
+    KID_STORY_MODEL: "Once upon a time there was a {subject}. ",
+    FALLBACK_STORY_MODEL: (
+        "Tell a happy bedtime story for a 6 year old child about {subject}. "
+        "Use simple words, short sentences, and end with something nice. "
+        "Story:\n"
+    ),
+}
+
+# Maps the pipeline phase to which quest-path step should be highlighted.
+#   idle    → step 1 (pick a picture)
+#   working → step 2 (make my story)
+#   done    → step 3 (listen & save)
+PHASE_TO_ACTIVE_STEP: dict[str, int] = {
+    "idle": 1,
+    "working": 2,
+    "done": 3,
+}
+
+# Default values for every key we put in st.session_state. Used both to
+# initialise the session on first run and to reset it when the user
+# removes their upload.
+DEFAULT_SESSION_STATE: dict[str, Any] = {
+    "story": "",
+    "audio_bytes": b"",
+    "caption": "",
+    "celebrated": False,
+    "phase": "idle",            # one of: idle | working | done
+    "progress_step": 0,
+}
+
+# Steps shown by the inline turning-book loader while the pipeline runs.
+# Each tuple is (emoji, fractional progress, status text).
+LOADER_STEPS: list[tuple[str, float, str]] = [
+    ("🔎", 0.15, "Looking at your picture"),
+    ("📖", 0.45, "Writing your story"),
+    ("🎤", 0.80, "Recording the voice"),
+    ("✅", 1.00, "All done!"),
+]
+
 
 # =============================================================================
 # 2. CACHED MODEL LOADERS
 # =============================================================================
 
 @st.cache_resource(show_spinner=False)
-def _get_caption_pipeline():
-    """Lazy-load BLIP captioner (cached across sessions)."""
+def _get_caption_pipeline() -> dict[str, Any]:
+    """Lazy-load the BLIP captioner (cached across sessions)."""
     model = AutoModelForImageTextToText.from_pretrained(CAPTION_MODEL)
     processor = AutoProcessor.from_pretrained(CAPTION_MODEL)
     return {"model": model, "processor": processor}
 
 
 @st.cache_resource(show_spinner=False)
-def _get_story_pipeline():
-    """Load TinyStories (preferred) with distilgpt2 fallback."""
+def _get_story_pipeline() -> tuple[Any, str]:
+    """Load TinyStories (preferred) with distilgpt2 as a fallback.
+
+    Returns the (text_generation_pipeline, model_id) tuple of whichever
+    model loaded first; raises RuntimeError if none succeed.
+    """
     for model_id in (KID_STORY_MODEL, FALLBACK_STORY_MODEL):
         try:
             tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -120,8 +166,15 @@ def _get_story_pipeline():
 # 3. CORE PIPELINE FUNCTIONS
 # =============================================================================
 
-def img2text(url_or_image):
-    """Image → caption using BLIP (bypassing the pipeline wrapper)."""
+def img2text(url_or_image: str | Image.Image) -> str:
+    """Image → short caption using the BLIP image-text-to-text model.
+
+    Parameters
+    ----------
+    url_or_image : str | PIL.Image.Image
+        Either a PIL Image (typical case from the Streamlit uploader)
+        or a URL string pointing at a remote image.
+    """
     captioner = _get_caption_pipeline()
     model = cast(Any, captioner["model"])
     processor = cast(Any, captioner["processor"])
@@ -133,8 +186,8 @@ def img2text(url_or_image):
             else url_or_image
         )
     else:
-        with urllib.request.urlopen(str(url_or_image)) as resp:
-            image = Image.open(BytesIO(resp.read())).convert("RGB")
+        with urllib.request.urlopen(str(url_or_image)) as response:
+            image = Image.open(BytesIO(response.read())).convert("RGB")
 
     inputs = processor(images=image, return_tensors="pt")
     output_ids = model.generate(**inputs, max_new_tokens=40)
@@ -145,24 +198,18 @@ def img2text(url_or_image):
     return text
 
 
-_STORY_PROMPTS = {
-    KID_STORY_MODEL:      "Once upon a time there was a {subject}. ",
-    FALLBACK_STORY_MODEL: (
-        "Tell a happy bedtime story for a 6 year old child about {subject}. "
-        "Use simple words, short sentences, and end with something nice. "
-        "Story:\n"
-    ),
-}
+def text2story(caption: str) -> str:
+    """Caption → kid-friendly bedtime story (50–100 words).
 
-
-def text2story(text):
-    """Caption → story (50–100 words, bedtime style, kid-friendly,
-    NO emojis and NO quotes in the output)."""
+    Emojis and stray quotes are stripped, the end is repaired so the
+    story finishes on a complete sentence, and the result is trimmed
+    to the assignment's 50–100 word target.
+    """
     story_gen, model_id = _get_story_pipeline()
     template = _STORY_PROMPTS.get(
         model_id, _STORY_PROMPTS[FALLBACK_STORY_MODEL])
 
-    subject = _extract_subject(text)
+    subject = _extract_subject(caption)
     prompt = template.format(subject=subject)
 
     gen_kwargs: dict[str, Any] = {
@@ -185,18 +232,20 @@ def text2story(text):
         generated = generated[len(prompt):]
 
     generated = re.sub(r"\s+", " ", generated).strip()
-    # strip early (emojis + quotes)
-    generated = _strip_emojis(generated)
+    generated = _strip_emojis(generated)       # strip early
     generated = _repair_story_end(generated)
     generated = _truncate_to_word_count(generated, low=50, high=100)
-    generated = _strip_emojis(generated)          # strip final
+    generated = _strip_emojis(generated)       # strip final
 
     return generated
 
 
-def text2audio(story_text):
-    """Story text → MP3 audio bytes. Emojis and quotes are stripped so
-    the voice never tries to pronounce them."""
+def text2audio(story_text: str) -> bytes:
+    """Story text → MP3 audio bytes via Google Text-to-Speech.
+
+    Emojis and quotes are stripped first so the voice never tries to
+    pronounce them. Returns an empty bytes object if the input is empty.
+    """
     if not story_text:
         return b""
 
@@ -343,12 +392,52 @@ def _repair_story_end(text: str) -> str:
 
 
 # =============================================================================
-# 4. UI — Storybook spread (left page = upload, right page = story)
+# 3b. SESSION-STATE HELPERS
 # =============================================================================
 
-# ---------- Floating background emoji + rainbow title ----------
-st.markdown(
-    """
+def _init_session_state() -> None:
+    """Populate st.session_state with the default values on first run."""
+    for key, default in DEFAULT_SESSION_STATE.items():
+        st.session_state.setdefault(key, default)
+
+
+def _reset_session_state() -> None:
+    """Reset every StorySpark session key back to its default value."""
+    for key, default in DEFAULT_SESSION_STATE.items():
+        st.session_state[key] = default
+
+
+# =============================================================================
+# 4. UI — small HTML-fragment helpers
+# =============================================================================
+
+# Quest-path step definitions used by _render_quest_path(). Tuples are
+# (icon, title, sub). The '&' in "Listen & save" is pre-escaped for HTML.
+_QUEST_STEPS: list[tuple[str, str, str]] = [
+    ("🎨", "Pick a picture",   "PNG · JPG · WEBP · up to 25 MB"),
+    ("✨", "Make my story",    "Tap the big pink button"),
+    ("🎧", "Listen &amp; save", "Hear your story come alive"),
+]
+
+
+def _quest_step_classes(step_num: int, active_step: int) -> str:
+    """Return the CSS class string for a quest-path step at index n."""
+    if step_num < active_step:
+        return "quest-step done"
+    if step_num == active_step:
+        return "quest-step active"
+    return "quest-step"
+
+
+def _quest_badge_text(step_num: int, active_step: int) -> str:
+    """Return the badge text for a quest-path step (✓ if done, else its number)."""
+    return "✓" if step_num < active_step else str(step_num)
+
+
+def _render_floating_scene() -> None:
+    """Render the fixed-position floating background emoji scene."""
+    st.markdown(
+        """
 <div class="scene">
   <span class="float f1">🌈</span>
   <span class="float f2">⭐</span>
@@ -357,173 +446,53 @@ st.markdown(
   <span class="float f5">✨</span>
   <span class="float f6">🦄</span>
 </div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def _render_title() -> None:
+    """Render the rainbow 'StorySpark' title and tagline."""
+    st.markdown(
+        """
 <div class="title">
   <div class="title-main">✨ StorySpark ✨</div>
   <div class="title-sub">Show me a picture and I'll tell you a story!</div>
 </div>
 """,
-    unsafe_allow_html=True,
-)
-
-# ---------- Session state ----------
-for _key, _default in (
-    ("story", ""),
-    ("audio_bytes", b""),
-    ("caption", ""),
-    ("celebrated", False),
-    ("phase", "idle"),          # idle | working | done
-    ("progress_step", 0),
-):
-    st.session_state.setdefault(_key, _default)
-
-# ---------- Two facing pages ----------
-page_l, page_r = st.columns([1, 1], gap="large")
-
-# =============================================================================
-#  LEFT PAGE — Upload (+ quest path in the empty state only)
-# =============================================================================
-with page_l:
-    st.markdown(
-        '<div class="page-heading">'
-        '<span class="page-emoji">🎨</span>'
-        '<span>Put your picture here!</span>'
-        '</div>',
         unsafe_allow_html=True,
     )
 
-    uploaded = st.file_uploader(
-        label="Upload a picture",
-        type=["png", "jpg", "jpeg", "webp"],
-        accept_multiple_files=False,
-        label_visibility="collapsed",
-        key="uploaded_image",
+
+def _render_quest_path(active_step: int) -> None:
+    """Render the 3-step 'Pick → Make → Listen' quest path shown in the empty state."""
+    blocks: list[str] = []
+    for n, (icon, title, sub) in enumerate(_QUEST_STEPS, start=1):
+        blocks.append(
+            f'<div class="{_quest_step_classes(n, active_step)}">'
+            f'<div class="quest-badge">{_quest_badge_text(n, active_step)}</div>'
+            f'<div class="quest-icon">{icon}</div>'
+            f'<div class="quest-text">'
+            f'<div class="quest-title">{title}</div>'
+            f'<div class="quest-sub">{sub}</div>'
+            f'</div>'
+            f'</div>'
+        )
+        # A connector goes after every step EXCEPT the last.
+        if n < len(_QUEST_STEPS):
+            blocks.append('<div class="quest-connector"></div>')
+
+    st.markdown(
+        f'<div class="quest-path">{"".join(blocks)}</div>',
+        unsafe_allow_html=True,
     )
 
-    if uploaded is not None:
-        # ---------- Post-upload state: image + magic button only ----------
-        image = Image.open(uploaded)
-        st.image(image, use_container_width=True)
 
-        if st.session_state.phase == "working":
-            st.markdown(
-                """
-<style>
-[data-testid="stFileUploader"] {
-    pointer-events: none;
-    opacity: 0.55;
-}
-</style>
-""",
-                unsafe_allow_html=True,
-            )
-
-        make_story = st.button(
-            "Make My Story!",
-            type="primary",
-            use_container_width=True,
-            help="Tap to make a story from your picture ✨",
-            key="make_story_btn",
-            disabled=(st.session_state.phase == "working"),
-        )
-
-    else:
-        # ---------- Empty state: quest path guides the child in ----------
-        image = None
-        make_story = False
-
-        # Active step follows the phase:
-        #   idle    → step 1 active
-        #   working → step 2 active, step 1 done
-        #   done    → step 3 active, steps 1 & 2 done
-        _phase_now = st.session_state.phase
-        _active_step = {"idle": 1, "working": 2, "done": 3}.get(
-            _phase_now, 1
-        )
-
-        def _step_classes(n: int) -> str:
-            if n < _active_step:
-                return "quest-step done"
-            if n == _active_step:
-                return "quest-step active"
-            return "quest-step"
-
-        def _badge_text(n: int) -> str:
-            return "✓" if n < _active_step else str(n)
-
-        st.markdown(
-            f"""
-<div class="quest-path">
-
-  <div class="{_step_classes(1)}">
-    <div class="quest-badge">{_badge_text(1)}</div>
-    <div class="quest-icon">🎨</div>
-    <div class="quest-text">
-      <div class="quest-title">Pick a picture</div>
-      <div class="quest-sub">PNG · JPG · WEBP · up to 25 MB</div>
-    </div>
-  </div>
-
-  <div class="quest-connector"></div>
-
-  <div class="{_step_classes(2)}">
-    <div class="quest-badge">{_badge_text(2)}</div>
-    <div class="quest-icon">✨</div>
-    <div class="quest-text">
-      <div class="quest-title">Make my story</div>
-      <div class="quest-sub">Tap the big pink button</div>
-    </div>
-  </div>
-
-  <div class="quest-connector"></div>
-
-  <div class="{_step_classes(3)}">
-    <div class="quest-badge">{_badge_text(3)}</div>
-    <div class="quest-icon">🎧</div>
-    <div class="quest-text">
-      <div class="quest-title">Listen &amp; save</div>
-      <div class="quest-sub">Hear your story come alive</div>
-    </div>
-  </div>
-
-</div>
-""",
-            unsafe_allow_html=True,
-        )
-
-        # Clear any stale story if the user removed their upload.
-        if st.session_state.story or st.session_state.audio_bytes:
-            for k, v in (
-                ("story", ""),
-                ("audio_bytes", b""),
-                ("caption", ""),
-                ("celebrated", False),
-                ("phase", "idle"),
-                ("progress_step", 0),
-            ):
-                st.session_state[k] = v
-            st.rerun()
-
-# =============================================================================
-#  RIGHT PAGE — Story OR inline loader OR Ollie empty state
-# =============================================================================
-with page_r:
-    story = st.session_state.story
-    audio_bytes = st.session_state.audio_bytes
-    phase = st.session_state.phase
-    step = st.session_state.progress_step
-
-    # -------- State A : pipeline running → inline turning-book loader ----
-    if phase == "working":
-        _LOADER_STEPS = [
-            ("🔎", 0.15, "Looking at your picture"),
-            ("📖", 0.45, "Writing your story"),
-            ("🎤", 0.80, "Recording the voice"),
-            ("✅", 1.00, "All done!"),
-        ]
-        emoji, pct, note = _LOADER_STEPS[min(step, 3)]
-
-        st.markdown(
-            f"""
+def _render_progress_loader(step: int) -> None:
+    """Render the inline turning-book loader with progress bar and emoji."""
+    emoji, pct, note = LOADER_STEPS[min(step, len(LOADER_STEPS) - 1)]
+    st.markdown(
+        f"""
 <div class="progress-inline">
   <div class="turning-book" aria-hidden="true">
     <div class="base">
@@ -543,73 +512,79 @@ with page_r:
   <div class="progress-text">{note}</div>
 </div>
 """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_download_buttons(audio_bytes: bytes, story: str) -> None:
+    """Render two raw <a download> links for the audio (MP3) and story (TXT).
+
+    We use raw links rather than st.download_button so that clicking
+    them does NOT trigger a Streamlit rerun and interrupt audio playback.
+    """
+    audio_b64 = base64.b64encode(audio_bytes).decode(
+        "ascii") if audio_bytes else ""
+    story_url = quote(story, safe="")
+
+    c1, c2 = st.columns(2, gap="small")
+    with c1:
+        st.markdown(
+            f'<div class="ss-dl-cell">'
+            f'<a class="ss-dl-link ss-dl-voice" '
+            f'href="data:audio/mp3;base64,{audio_b64}" '
+            f'download="storyspark_story.mp3">'
+            f'Save the voice</a>'
+            f'</div>',
             unsafe_allow_html=True,
         )
-
-    # -------- State B : story ready → show it -------------------------
-    elif story:
-        if not st.session_state.celebrated:
-            st.balloons()
-            st.session_state.celebrated = True
-
+    with c2:
         st.markdown(
-            '<div class="page-heading">'
-            '<span class="page-emoji">📖</span>'
-            '<span>Here comes your story!</span>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            f'<div class="story-text">{story}</div>',
-            unsafe_allow_html=True,
-        )
-
-        _wc = len(story.split())
-        st.markdown(
-            f'<div class="word-count">'
-            f'<span class="wc-emoji">📝</span>'
-            f'<span class="wc-num">{_wc}</span>'
-            f'<span class="wc-sep">words</span>'
+            f'<div class="ss-dl-cell">'
+            f'<a class="ss-dl-link ss-dl-story" '
+            f'href="data:text/plain;charset=utf-8,{story_url}" '
+            f'download="storyspark_story.txt">'
+            f'Save the story</a>'
             f'</div>',
             unsafe_allow_html=True,
         )
 
-        st.audio(audio_bytes, format="audio/mp3")
 
-        # Raw <a download> links (NOT st.download_button) so clicking them
-        # does not trigger a Streamlit rerun and interrupt audio playback.
-        if audio_bytes:
-            audio_b64 = base64.b64encode(audio_bytes).decode("ascii")
-        else:
-            audio_b64 = ""
-        story_url = quote(story, safe="")
+def _render_story_output(story: str, audio_bytes: bytes) -> None:
+    """Render the completed story: heading, text, word count, audio, downloads."""
+    if not st.session_state.celebrated:
+        st.balloons()
+        st.session_state.celebrated = True
 
-        c1, c2 = st.columns(2, gap="small")
-        with c1:
-            st.markdown(
-                f'<div class="ss-dl-cell">'
-                f'<a class="ss-dl-link ss-dl-voice" '
-                f'href="data:audio/mp3;base64,{audio_b64}" '
-                f'download="storyspark_story.mp3">'
-                f'Save the voice</a>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-        with c2:
-            st.markdown(
-                f'<div class="ss-dl-cell">'
-                f'<a class="ss-dl-link ss-dl-story" '
-                f'href="data:text/plain;charset=utf-8,{story_url}" '
-                f'download="storyspark_story.txt">'
-                f'Save the story</a>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
+    st.markdown(
+        '<div class="page-heading">'
+        '<span class="page-emoji">📖</span>'
+        '<span>Here comes your story!</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f'<div class="story-text">{story}</div>',
+        unsafe_allow_html=True,
+    )
 
-    # -------- State C : Ollie + guidance ------------------------------
-    else:
-        st.markdown(
-            """
+    word_count = len(story.split())
+    st.markdown(
+        f'<div class="word-count">'
+        f'<span class="wc-emoji">📝</span>'
+        f'<span class="wc-num">{word_count}</span>'
+        f'<span class="wc-sep">words</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.audio(audio_bytes, format="audio/mp3")
+    _render_download_buttons(audio_bytes, story)
+
+
+def _render_empty_state() -> None:
+    """Render Ollie the Story Owl plus the original guidance text."""
+    st.markdown(
+        """
 <div class="page-empty">
 
   <!-- Ollie the Story Owl -->
@@ -645,50 +620,182 @@ with page_r:
 
 </div>
 """,
-            unsafe_allow_html=True,
+        unsafe_allow_html=True,
+    )
+
+
+# =============================================================================
+# 5. UI — page-level renderers
+# =============================================================================
+
+def render_upload_page() -> tuple[Any, bool]:
+    """Render the LEFT (upload) page.
+
+    Returns
+    -------
+    uploaded : Any
+        The currently uploaded file (Streamlit UploadedFile), or None if
+        nothing has been uploaded yet.
+    make_story : bool
+        True only on the run where the user just clicked the
+        'Make My Story!' button.
+    """
+    st.markdown(
+        '<div class="page-heading">'
+        '<span class="page-emoji">🎨</span>'
+        '<span>Put your picture here!</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    uploaded = st.file_uploader(
+        label="Upload a picture",
+        type=["png", "jpg", "jpeg", "webp"],
+        accept_multiple_files=False,
+        label_visibility="collapsed",
+        key="uploaded_image",
+    )
+
+    if uploaded is not None:
+        # Post-upload state: show the picture + the magic 'Make My Story!' button.
+        image = Image.open(uploaded)
+        st.image(image, use_container_width=True)
+
+        if st.session_state.phase == "working":
+            # Visually grey out the uploader while the pipeline is running.
+            st.markdown(
+                """
+<style>
+[data-testid="stFileUploader"] {
+    pointer-events: none;
+    opacity: 0.55;
+}
+</style>
+""",
+                unsafe_allow_html=True,
+            )
+
+        make_story = st.button(
+            "Make My Story!",
+            type="primary",
+            use_container_width=True,
+            help="Tap to make a story from your picture ✨",
+            key="make_story_btn",
+            disabled=(st.session_state.phase == "working"),
         )
+        return uploaded, make_story
+
+    # Empty state: show the quest path and reset any stale story/audio.
+    active_step = PHASE_TO_ACTIVE_STEP.get(st.session_state.phase, 1)
+    _render_quest_path(active_step)
+
+    if st.session_state.story or st.session_state.audio_bytes:
+        # The user removed their upload — drop any leftover story/audio so
+        # we don't show stale content on the next run.
+        _reset_session_state()
+        st.rerun()
+
+    return uploaded, False
+
+
+def render_story_page() -> None:
+    """Render the RIGHT (story) page: turning-book loader, finished story,
+    or the Ollie empty state — depending on the current phase."""
+    story = st.session_state.story
+    audio_bytes = st.session_state.audio_bytes
+    phase = st.session_state.phase
+    step = st.session_state.progress_step
+
+    if phase == "working":
+        _render_progress_loader(step)
+    elif story:
+        _render_story_output(story, audio_bytes)
+    else:
+        _render_empty_state()
+
 
 # =============================================================================
 # 6. MAIN PIPELINE — two-phase state machine
 # =============================================================================
-if make_story and uploaded is not None and st.session_state.phase == "idle":
-    st.session_state.phase = "working"
-    st.session_state.progress_step = 0
-    st.rerun()
 
-if st.session_state.phase == "working" and uploaded is not None:
-    working_image = Image.open(uploaded)
+def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
+    """Drive the image → story → audio state machine.
 
-    try:
+    Runs in two phases via Streamlit reruns:
+
+    * Phase 1 — user clicks 'Make My Story!': flip phase to 'working'
+      and rerun, so the loader UI is shown immediately.
+    * Phase 2 — phase is 'working': execute the pipeline step by step,
+      then either complete (flip to 'done') or fall back to 'idle' on
+      failure.
+    """
+    # ---- Phase 1: user just clicked the magic button ----
+    if make_story and uploaded is not None and st.session_state.phase == "idle":
+        st.session_state.phase = "working"
         st.session_state.progress_step = 0
-        caption = img2text(working_image)
+        st.rerun()
 
-        st.session_state.progress_step = 1
-        story = text2story(caption)
+    # ---- Phase 2: actually run the pipeline ----
+    if st.session_state.phase == "working" and uploaded is not None:
+        working_image = Image.open(uploaded)
 
-        st.session_state.progress_step = 2
-        audio_bytes = text2audio(story)
+        try:
+            st.session_state.progress_step = 0
+            caption = img2text(working_image)
 
-        st.session_state.progress_step = 3
+            st.session_state.progress_step = 1
+            story = text2story(caption)
 
-    except Exception as exc:
-        st.session_state.phase = "idle"
+            st.session_state.progress_step = 2
+            audio_bytes = text2audio(story)
+
+            st.session_state.progress_step = 3
+
+        except Exception as exc:
+            st.session_state.phase = "idle"
+            st.session_state.progress_step = 0
+            st.error(f"😢 Oops! Something went wrong: {exc}")
+            story, audio_bytes, caption = "", b"", ""
+
+        st.session_state.story = story
+        st.session_state.audio_bytes = audio_bytes
+        st.session_state.caption = caption
+        st.session_state.celebrated = False
+        st.session_state.phase = "done" if story else "idle"
         st.session_state.progress_step = 0
-        st.error(f"😢 Oops! Something went wrong: {exc}")
-        story, audio_bytes, caption = "", b"", ""
+        st.rerun()
 
-    st.session_state.story = story
-    st.session_state.audio_bytes = audio_bytes
-    st.session_state.caption = caption
-    st.session_state.celebrated = False
-    st.session_state.phase = "done" if story else "idle"
-    st.session_state.progress_step = 0
-    st.rerun()
 
 # =============================================================================
 # 7. FOOTER — fixed bottom bar
 # =============================================================================
-st.markdown(
-    "<div class='footer-bar'>Made with 💖 for tiny story-lovers</div>",
-    unsafe_allow_html=True,
-)
+
+def _render_footer() -> None:
+    """Render the fixed-position footer bar at the bottom of the page."""
+    st.markdown(
+        "<div class='footer-bar'>Made with 💖 for tiny story-lovers</div>",
+        unsafe_allow_html=True,
+    )
+
+
+# =============================================================================
+# 8. ENTRY POINT
+# =============================================================================
+
+def main() -> None:
+    """Run the full StorySpark Streamlit application."""
+    _init_session_state()
+    _render_floating_scene()
+    _render_title()
+
+    page_l, page_r = st.columns([1, 1], gap="large")
+    with page_l:
+        uploaded, make_story = render_upload_page()
+    with page_r:
+        render_story_page()
+
+    _run_story_pipeline(uploaded, make_story)
+    _render_footer()
+
+
+main()

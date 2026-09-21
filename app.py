@@ -141,9 +141,14 @@ def _get_caption_pipeline() -> Any:
     to a missing torchvision / sentencepiece in the host environment),
     falls back to loading the processor + model directly and wrapping
     them in a tiny callable that mimics the pipeline output shape.
+
+    Note on typing: `transformers.pipeline` has ~30 task-specific
+    overloads and the `"image-to-text"` task is not fully covered by
+    the type stubs. The `# type: ignore[call-overload]` comment is the
+    standard, accepted way to silence Pylance here.
     """
     try:
-        return pipeline(
+        return pipeline(  # type: ignore[call-overload]
             task="image-to-text",
             model=CAPTION_MODEL,
         )
@@ -167,21 +172,36 @@ def _get_caption_pipeline() -> Any:
         ) from exc
 
     class _BlipCaptioner:
-        """Minimal drop-in for pipeline('image-to-text')."""
+        """Minimal drop-in for pipeline('image-to-text').
+
+        Explicit `__init__` binding keeps Pylance happy: passing the
+        processor and model as constructor arguments means they're
+        typed as `Any` (rather than unresolved closure variables),
+        so `self._processor(images=..., return_tensors=...)`
+        type-checks cleanly.
+        """
+
+        def __init__(self, processor: Any, model: Any) -> None:
+            self._processor = processor
+            self._model = model
 
         def __call__(
             self,
             image: Any,
             max_new_tokens: int = 40,
         ) -> list[dict[str, str]]:
-            inputs = processor(images=image, return_tensors="pt")
-            output_ids = model.generate(
+            inputs = self._processor(
+                images=image, return_tensors="pt"
+            )
+            output_ids = self._model.generate(
                 **inputs, max_new_tokens=max_new_tokens
             )
-            text = processor.decode(output_ids[0], skip_special_tokens=True)
+            text = self._processor.decode(
+                output_ids[0], skip_special_tokens=True
+            )
             return [{"generated_text": text}]
 
-    return _BlipCaptioner()
+    return _BlipCaptioner(processor=processor, model=model)
 
 
 @st.cache_resource(show_spinner=False)
@@ -198,7 +218,7 @@ def _get_story_pipeline() -> tuple[Any, str]:
         try:
             tokenizer = AutoTokenizer.from_pretrained(model_id)
             model = AutoModelForCausalLM.from_pretrained(model_id)
-            text_gen = pipeline(
+            text_gen = pipeline(  # type: ignore[call-overload]
                 task="text-generation",
                 model=model,
                 tokenizer=tokenizer,

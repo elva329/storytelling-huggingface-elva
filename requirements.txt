@@ -1,19 +1,7 @@
-# Core
-streamlit>=1.30.0,<2.0.0
-
-# Hugging Face
-# >=4.42.0 required for AutoModelForImageTextToText (used for BLIP captioning).
-# <6.0.0 keeps us on a stable major without surprise API removals.
-transformers>=4.42.0,<6.0.0
-torch>=2.0.0,<3.0.0
-huggingface_hub>=0.20.0,<1.0.0
-tokenizers>=0.15.0,<1.0.0
-
-# Image processing
-Pillow>=10.0.0
-
-# Text-to-Speech (gTTS uses Google's public TTS API — no API key required)
+streamlit>=1.32.0
+transformers>=4.40.0
+torch>=2.2.0
+torchvision>=0.17.0
+pillow>=10.0.0
 gTTS>=2.5.0
-
-# Optional: Faster BLIP inference (snappier image captioning)
-# timm>=0.9.0
+sentencepiece>=0.1.99

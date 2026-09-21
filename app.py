@@ -600,45 +600,35 @@ def _render_progress_loader(step: int) -> None:
 
 
 def _render_download_buttons(audio_bytes: bytes, story: str) -> None:
-    """Render two download links for the audio (MP3) and story (TXT).
+    """Render two raw <a download> links for the audio (MP3) and story (TXT).
 
-    Audio uses a raw <a> link so clicking it does NOT trigger a Streamlit
-    rerun (which would interrupt playback). The story uses
-    st.download_button because long text can exceed browser href limits
-    for data: URIs.
+    We use raw links rather than st.download_button so that clicking
+    them does NOT trigger a Streamlit rerun and interrupt audio playback.
     """
-    audio_b64 = (
-        base64.b64encode(audio_bytes).decode("ascii") if audio_bytes else ""
-    )
+    audio_b64 = base64.b64encode(audio_bytes).decode(
+        "ascii") if audio_bytes else ""
+    story_url = quote(story, safe="")
 
     c1, c2 = st.columns(2, gap="small")
     with c1:
-        if audio_b64:
-            st.markdown(
-                f'<div class="ss-dl-cell">'
-                f'<a class="ss-dl-link ss-dl-voice" '
-                f'href="data:audio/mp3;base64,{audio_b64}" '
-                f'download="storyspark_story.mp3">'
-                f'Save the voice</a>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                '<div class="ss-dl-cell">'
-                '<span class="ss-dl-link ss-dl-voice" '
-                'aria-disabled="true">Save the voice</span>'
-                '</div>',
-                unsafe_allow_html=True,
-            )
+        st.markdown(
+            f'<div class="ss-dl-cell">'
+            f'<a class="ss-dl-link ss-dl-voice" '
+            f'href="data:audio/mp3;base64,{audio_b64}" '
+            f'download="storyspark_story.mp3">'
+            f'Save the voice</a>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
     with c2:
-        st.download_button(
-            label="Save the story",
-            data=story.encode("utf-8"),
-            file_name="storyspark_story.txt",
-            mime="text/plain",
-            use_container_width=True,
-            key="download_story_txt",
+        st.markdown(
+            f'<div class="ss-dl-cell">'
+            f'<a class="ss-dl-link ss-dl-story" '
+            f'href="data:text/plain;charset=utf-8,{story_url}" '
+            f'download="storyspark_story.txt">'
+            f'Save the story</a>'
+            f'</div>',
+            unsafe_allow_html=True,
         )
 
 
@@ -670,9 +660,7 @@ def _render_story_output(story: str, audio_bytes: bytes) -> None:
         unsafe_allow_html=True,
     )
 
-    if audio_bytes:
-        st.audio(audio_bytes, format="audio/mp3")
-
+    st.audio(audio_bytes, format="audio/mp3")
     _render_download_buttons(audio_bytes, story)
 
 

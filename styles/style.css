@@ -43,7 +43,7 @@
 section.main > div.block-container {
     max-width: 1320px !important;
     width: 100% !important;
-    padding: 0.1rem 2rem 0.2rem 2rem !important;
+    padding: 0 0.2rem 0.2rem 0.2rem !important;
     margin: 0 auto !important;
 }
 
@@ -51,7 +51,7 @@ section.main > div.block-container {
 [data-testid="stHorizontalBlock"] {
     gap: 1.4rem !important;
     align-items: stretch !important;
-    margin-top: 0.6rem !important;
+    margin-top: 0.1rem !important;
 }
 
 /* =================================================================
@@ -146,6 +146,7 @@ section[data-testid="stColumn"] {
 .title {
     text-align: center;
     padding: 0 0 0.4rem;
+    margin-top: -1.2rem;
     position: relative;
     z-index: 2;
 }

@@ -7,11 +7,6 @@
 
 /* =================================================================
    FLOATING BACKGROUND EMOJI
-   -----------------------------------------------------------------
-   Scene sits ABOVE the page background but BELOW the two page
-   cards & title. z-index 0 here, cards z-index 1, title z-index 2.
-   top/right/bottom/left are declared BEFORE `inset` so older Safari
-   (which doesn't understand `inset`) still expands the scene.
    ================================================================= */
 .scene {
     position: fixed;
@@ -19,7 +14,7 @@
     right: 0;
     bottom: 0;
     left: 0;
-    inset: 0;                  /* modern browsers */
+    inset: 0;
     width: 100vw;
     height: 100vh;
     pointer-events: none;
@@ -48,7 +43,7 @@
 }
 
 /* =================================================================
-   RAINBOW TITLE — wiggle (referenced by .title-main in style.css)
+   RAINBOW TITLE — wiggle
    ================================================================= */
 @keyframes wiggle {
     0%, 100% { transform: rotate(-1deg); }
@@ -56,7 +51,7 @@
 }
 
 /* =================================================================
-   PAGE GLOW — page-pulse (referenced by the loading right column)
+   PAGE GLOW — page-pulse
    ================================================================= */
 @keyframes page-pulse {
     0%, 100% { box-shadow:
@@ -69,7 +64,6 @@
 
 /* =================================================================
    OLLIE (story-guide) KEYFRAMES
-   Referenced by selectors in components.css.
    ================================================================= */
 @keyframes guide-bob {
     0%, 100% { transform: translateY(0) rotate(-1deg); }
@@ -130,7 +124,7 @@
     right: 0;
     bottom: 0;
     left: 0;
-    inset: 0;                  /* modern browsers */
+    inset: 0;
     display: flex;
     z-index: 1;
 }
@@ -277,9 +271,7 @@
     color: var(--ink);
 }
 
-/* Animated dots — cross-browser via clip-path (content animation
-   only works in Chrome/Edge). The base `content` is static "..."
-   and a clip-path hides progressively more of it on a loop. */
+/* Animated dots — cross-browser via clip-path. */
 .progress-inline .progress-text::after {
     content: "...";
     display: inline-block;
@@ -303,7 +295,12 @@
 }
 
 /* =================================================================
-   MAGIC BUTTON KEYFRAMES (referenced by selectors in components.css)
+   MAGIC BUTTON DECORATION KEYFRAMES
+   -----------------------------------------------------------------
+   The primary button itself is fully static (no animation, no
+   transform, no transition). Only these decorative effects remain —
+   sparkles orbiting the wrapper, and a shimmer sweep on the
+   button's ::after pseudo-element.
    ================================================================= */
 @keyframes sparkle-orbit {
     0%, 100% { transform: scale(0.6) translateY(0);    opacity: 0.4; }
@@ -316,38 +313,8 @@
     100% { left: 120%; }
 }
 
-@keyframes wand-wave {
-    0%, 100% { transform: rotate(0deg); }
-    25%      { transform: rotate(-18deg); }
-    75%      { transform: rotate(18deg); }
-}
-
-@keyframes magic-pulse {
-    0%, 100% { transform: scale(1)    rotate(-0.3deg); }
-    50%      { transform: scale(1.02) rotate(0.3deg);  }
-}
-@keyframes glow-flicker {
-    0%, 100% {
-        box-shadow:
-            0 5px 0 var(--coral-deep),
-            0 7px 0 var(--coral-deeper),
-            0 14px 26px rgba(255, 111, 145, 0.45),
-            inset 0 2px 0 rgba(255, 255, 255, 0.4);
-    }
-    50% {
-        box-shadow:
-            0 5px 0 var(--coral-deep),
-            0 7px 0 var(--coral-deeper),
-            0 18px 34px rgba(255, 204, 51, 0.55),
-            inset 0 2px 0 rgba(255, 255, 255, 0.55);
-    }
-}
-
 /* =================================================================
-   REDUCED MOTION — disable every animation / transition for users
-   who request less motion at the OS level.
-   The wildcard handles all animated elements; we only need to
-   hide the floating scene explicitly.
+   REDUCED MOTION
    ================================================================= */
 @media (prefers-reduced-motion: reduce) {
     *,

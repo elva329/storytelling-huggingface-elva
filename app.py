@@ -31,6 +31,7 @@ import io
 import logging
 import re
 import time
+import urllib.error
 import urllib.request
 from io import BytesIO
 from pathlib import Path
@@ -45,6 +46,22 @@ from transformers import (
     pipeline,
 )
 from gtts import gTTS
+
+# `gTTSError` lives in different modules across gTTS releases; import it
+# defensively so a future version bump doesn't crash the whole app.
+try:
+    from gtts import gTTSError                     # type: ignore[attr-defined]
+except ImportError:                                # pragma: no cover
+    from gtts.tts import gTTSError                 # type: ignore[attr-defined]
+
+# Exceptions that indicate the user's network / DNS is unavailable. We
+# treat them as a single "you're offline" bucket in the UI so the
+# message stays kid-friendly.
+_NETWORK_ERRORS: tuple[type[BaseException], ...] = (
+    urllib.error.URLError,
+    ConnectionError,
+    TimeoutError,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +164,14 @@ DEFAULT_SESSION_STATE: dict[str, Any] = {
     "phase": "idle",          # one of: idle | working | done
     "progress_step": 0,
 }
+
+# Assignment requirement: stories must be 50–100 words. The generator
+# trims to (high − 7) so the canonical "happily ever after" closer
+# still fits; _validate_word_count warns the user if anything slipped
+# through the cracks.
+STORY_WORD_COUNT_LOW: int = 50
+STORY_WORD_COUNT_HIGH: int = 100
+STORY_WORD_COUNT_TRIM_HIGH: int = STORY_WORD_COUNT_HIGH - 7
 
 # Steps shown by the inline turning-book loader. Each tuple is
 # (emoji, fractional progress, status text). Index matches
@@ -327,9 +352,13 @@ def text2story(caption: str) -> str:
     generated = re.sub(r"\s+", " ", generated).strip()
     generated = _strip_emojis(generated)              # strip early
     generated = _repair_story_end(generated)
-    # Truncate FIRST (high=93 leaves ~7 words of room) so the canonical
-    # happy ending added below is never dropped by the word-count cap.
-    generated = _truncate_to_word_count(generated, low=50, high=93)
+    # Truncate FIRST (leaves ~7 words of room) so the canonical happy
+    # ending added below is never dropped by the word-count cap.
+    generated = _truncate_to_word_count(
+        generated,
+        low=STORY_WORD_COUNT_LOW,
+        high=STORY_WORD_COUNT_TRIM_HIGH,
+    )
     generated = _ensure_happy_ending(generated)
     if not _is_safe_for_kids(generated):
         # The distilgpt2 fallback occasionally emits age-inappropriate
@@ -595,6 +624,112 @@ def _reset_session_state() -> None:
 
 
 # ---------------------------------------------------------------------------
+# 3c. Pipeline error helpers — kid-friendly surfaces for failures
+# ---------------------------------------------------------------------------
+
+# Friendly messages keyed by failure stage. Centralising them here keeps
+# the UI copy consistent and makes them easy to translate / unit-test
+# later. Each one is short, kid-appropriate, and tells the user what
+# to do next instead of exposing technical details.
+
+_ERR_NO_IMAGE: str = (
+    "👆 Please upload a picture first — then tap the magic button!"
+)
+_ERR_BAD_IMAGE: str = (
+    "😯 We couldn't read that picture — it looks broken or "
+    "isn't really a PNG / JPG / WEBP. Please try a different one!"
+)
+_ERR_OFFLINE: str = (
+    "🌐 It looks like you're offline! "
+    "Please check your internet connection and try again."
+)
+_ERR_MODEL_LOAD: str = (
+    "🤖 Our story-building models are taking a little nap. "
+    "Please try again in a moment!"
+)
+_ERR_CAPTION: str = (
+    "🔍 We had trouble looking at your picture. "
+    "Please try again in a moment!"
+)
+_ERR_EMPTY_CAPTION: str = (
+    "🤔 We couldn't find anything to describe in this picture. "
+    "Try a different image with a clearer subject!"
+)
+_ERR_STORY: str = (
+    "✍️ We had trouble writing your story. Please tap the button again!"
+)
+_ERR_EMPTY_STORY: str = (
+    "🤔 Our story-writer didn't come up with anything this time. "
+    "Please tap the button again to try once more!"
+)
+_ERR_TTS_NETWORK: str = (
+    "📖 We wrote your story! 🎤 …but couldn't record the voice — "
+    "you appear to be offline. Reconnect and tap again to add audio!"
+)
+_ERR_TTS_OTHER: str = (
+    "📖 We wrote your story! 🎤 …but the voice recording didn't work. "
+    "Please try again in a moment to add audio!"
+)
+
+
+def _reset_pipeline_state() -> None:
+    """Reset phase/progress/loader after a pipeline failure.
+
+    Used by every stage-specific error handler so the user can retry
+    without manual state cleanup. Safe to call when no loader exists.
+    """
+    slot = st.session_state.get("_loader_slot")
+    if slot is not None:
+        try:
+            slot.empty()
+        except Exception:                   # noqa: BLE001 — defensive
+            logger.exception("Failed to clear loader slot")
+    st.session_state.pop("_loader_slot", None)
+    st.session_state.phase = "idle"
+    st.session_state.progress_step = 0
+
+
+def _validate_word_count(story: str) -> None:
+    """Warn (don't block) if a story lands outside the 50–100 word target.
+
+    The generator tries hard to land in this window — see
+    ``_truncate_to_word_count`` and ``_ensure_happy_ending`` — but if
+    a model output ever slips through, we surface a friendly warning
+    instead of silently shipping an off-spec story.
+    """
+    if not story:
+        return
+    n = len(story.split())
+    if n < STORY_WORD_COUNT_LOW or n > STORY_WORD_COUNT_HIGH:
+        st.warning(
+            f"📏 Your story is {n} words (the assignment target is "
+            f"{STORY_WORD_COUNT_LOW}–{STORY_WORD_COUNT_HIGH} words). "
+            "Tap the magic button again for a different story!"
+        )
+
+
+def _looks_offline(exc: BaseException) -> bool:
+    """True if ``exc`` (or any chained cause) looks like a network failure.
+
+    Lets the pipeline route a wider range of low-level errors into the
+    friendly "you're offline" bucket instead of dumping them verbatim.
+    """
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, _NETWORK_ERRORS):
+            return True
+        # gTTS wraps network failures in gTTSError; the chained cause
+        # is the real URLError. Walk the chain to find it.
+        next_exc = getattr(current, "__cause__", None) or getattr(
+            current, "__context__", None
+        )
+        current = next_exc if isinstance(next_exc, BaseException) else None
+    return False
+
+
+# ---------------------------------------------------------------------------
 # 4. UI — small HTML-fragment helpers
 # ---------------------------------------------------------------------------
 
@@ -811,10 +946,7 @@ def render_upload_page() -> tuple[Any, bool]:
         preview_image.load()
     except (Image.UnidentifiedImageError, OSError) as exc:
         logger.warning("User uploaded an unreadable image: %s", exc)
-        st.error(
-            "😯 We couldn't read that picture — it looks broken or "
-            "isn't really a PNG / JPG / WEBP. Please try a different one!"
-        )
+        st.error(_ERR_BAD_IMAGE)
         # Skip the preview + button so the user can't trigger the
         # pipeline on a known-bad file.
         return uploaded, False
@@ -830,7 +962,6 @@ def render_upload_page() -> tuple[Any, bool]:
     make_story = st.button(
         "Make My Story!",
         type="primary",
-        use_container_width=True,
         help="Tap to make a story from your picture ✨",
         key="make_story_btn",
         disabled=(st.session_state.phase == "working"),
@@ -885,6 +1016,12 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
     * Phase 2 — phase is 'working': execute the pipeline, painting the
       loader in-place between stages, then flip to 'done' (or back to
       'idle' on failure).
+
+    Each pipeline stage has its own try/except so the user sees a
+    kid-friendly message that names *what* failed and *what to do*,
+    instead of a single generic error that exposes raw tracebacks.
+    Network failures get a dedicated branch; TTS failures preserve
+    the already-generated story so the user can still read it.
     """
     # ---- Phase 1: user just clicked the magic button ----
     if (
@@ -896,15 +1033,34 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         st.session_state.progress_step = 0
         st.rerun()
 
+    # Defensive guard: if a click ever arrives without a file (shouldn't
+    # happen because the button is hidden in the empty state, but a
+    # stale session_state could let it slip through), tell the user
+    # what's missing instead of silently returning.
+    if make_story and uploaded is None and st.session_state.phase == "idle":
+        st.warning(_ERR_NO_IMAGE)
+        return
+
     # ---- Phase 2: actually run the pipeline ----
     if st.session_state.phase != "working" or uploaded is None:
         return
 
     uploaded.seek(0)
-    working_image = Image.open(uploaded)
+    try:
+        working_image = Image.open(uploaded)
+        working_image.load()             # force full decode now
+    except (Image.UnidentifiedImageError, OSError) as exc:
+        # Defensive: render_upload_page already validated this file,
+        # but a stale session_state could let an invalid upload slip
+        # through. Surface the same friendly message either way.
+        logger.warning("Pipeline image re-validation failed: %s", exc)
+        _reset_pipeline_state()
+        st.error(_ERR_BAD_IMAGE)
+        return
 
-    # Initialise BEFORE try so these are always bound.
-    story, audio_bytes, caption = "", b"", ""
+    # Initialise BEFORE the per-stage try blocks so every binding
+    # exists even on early-return.
+    caption, story, audio_bytes = "", "", b""
 
     # Reuse the loader slot created by render_story_page so we don't get
     # two .progress-inline blocks on screen at once. If it's missing
@@ -916,29 +1072,117 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         with loader_slot.container():
             _render_progress_loader(step_index)
 
+    # ----------------------------------------------------------------
+    # Stage 1: image captioning
+    # ----------------------------------------------------------------
     try:
         _paint(0)
         caption = img2text(working_image)
+    except _NETWORK_ERRORS as exc:
+        # Image was fetched (or supplied) but the model call needs HF.
+        logger.warning("Network error during captioning: %s", exc)
+        _reset_pipeline_state()
+        st.error(_ERR_OFFLINE)
+        return
+    except Exception:                                   # noqa: BLE001
+        logger.exception("Captioning failed")
+        _reset_pipeline_state()
+        st.error(_ERR_CAPTION)
+        return
+
+    if not caption.strip():
+        logger.info("Captioner returned an empty string")
+        _reset_pipeline_state()
+        st.warning(_ERR_EMPTY_CAPTION)
+        return
+
+    # ----------------------------------------------------------------
+    # Stage 2: story generation
+    # ----------------------------------------------------------------
+    try:
         _paint(1)
         story = text2story(caption)
-        _paint(2)
-        audio_bytes = text2audio(story)
-        _paint(3)
-        time.sleep(0.25)                 # let the final frame paint
-    except Exception as exc:             # noqa: BLE001 — surface any failure
-        loader_slot.empty()
-        st.session_state._loader_slot = None
-        st.session_state.phase = "idle"
-        st.session_state.progress_step = 0
-        st.error(f"😢 Oops! Something went wrong: {exc}")
-        logger.exception("StorySpark pipeline failed")
+    except _NETWORK_ERRORS as exc:
+        logger.warning("Network error during story generation: %s", exc)
+        _reset_pipeline_state()
+        st.error(_ERR_OFFLINE)
         return
+    except RuntimeError as exc:
+        # _get_story_pipeline raises RuntimeError when BOTH models
+        # fail to load — surface it as "models are napping" instead of
+        # leaking the underlying HF / OS error to the user.
+        logger.error("Story model unavailable: %s", exc)
+        _reset_pipeline_state()
+        st.error(_ERR_MODEL_LOAD)
+        return
+    except Exception:                                   # noqa: BLE001
+        logger.exception("Story generation failed")
+        _reset_pipeline_state()
+        st.error(_ERR_STORY)
+        return
+
+    if not story.strip():
+        logger.info("text2story returned an empty string")
+        _reset_pipeline_state()
+        st.warning(_ERR_EMPTY_STORY)
+        return
+
+    _paint(2)
+    # Surface (but don't block on) word-count drift. Generator tries
+    # hard to land in [50, 100]; this is the safety net.
+    _validate_word_count(story)
+
+    # ----------------------------------------------------------------
+    # Stage 3: text-to-speech
+    # ----------------------------------------------------------------
+    # TTS only needs an internet call (gTTS → Google). If it fails we
+    # still save the story so the user can read it; only audio is lost.
+    try:
+        audio_bytes = text2audio(story)
+    except _NETWORK_ERRORS as exc:
+        logger.warning("Network error during TTS: %s", exc)
+        st.session_state.story = story
+        st.session_state.audio_bytes = b""
+        st.session_state.caption = caption
+        st.session_state.celebrated = False
+        st.session_state.phase = "done"
+        st.session_state.progress_step = 0
+        st.session_state._loader_slot = None
+        st.error(_ERR_TTS_NETWORK)
+        st.rerun()
+        return
+    except Exception as exc:                            # noqa: BLE001
+        # gTTSError (and any other TTS-layer failure) goes here. We
+        # also check _looks_offline() so a wrapped URLError inside a
+        # gTTSError gets the friendlier offline message.
+        if _looks_offline(exc):
+            logger.warning("TTS failed with underlying network error: %s", exc)
+            user_msg = _ERR_TTS_NETWORK
+        else:
+            logger.exception("TTS failed")
+            user_msg = _ERR_TTS_OTHER
+        st.session_state.story = story
+        st.session_state.audio_bytes = b""
+        st.session_state.caption = caption
+        st.session_state.celebrated = False
+        st.session_state.phase = "done"
+        st.session_state.progress_step = 0
+        st.session_state._loader_slot = None
+        st.error(user_msg)
+        st.rerun()
+        return
+
+    # ----------------------------------------------------------------
+    # Stage 4: final paint + commit
+    # ----------------------------------------------------------------
+    _paint(3)
+    time.sleep(0.25)                  # let the final frame paint
 
     st.session_state.story = story
     st.session_state.audio_bytes = audio_bytes
     st.session_state.caption = caption
     st.session_state.celebrated = False
-    st.session_state.phase = "done" if story else "idle"
+    st.session_state.phase = "done"
     st.session_state.progress_step = 0
     st.session_state._loader_slot = None
     st.rerun()

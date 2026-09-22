@@ -2,6 +2,6 @@ streamlit>=1.32.0
 transformers>=4.40.0
 torch>=2.2.0
 torchvision>=0.17.0
-pillow>=10.0.0
+Pillow>=10.0.0
 gTTS>=2.5.0
 sentencepiece>=0.1.99

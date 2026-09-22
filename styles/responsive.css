@@ -11,13 +11,19 @@
     .title-main { font-size: 2.2rem; }
     .title-sub  { font-size: 1rem; }
 
+    /* Reduce the top margin so contents sit a bit higher on mobile
+       too, matching the desktop layout. */
+    [data-testid="stHorizontalBlock"] {
+        margin-top: 0.4rem !important;
+    }
+
     [data-testid="column"],
     [data-testid="stColumn"],
     section[data-testid="stColumn"] {
         width: 100% !important;
         flex: 1 1 100% !important;
         min-height: auto !important;
-        padding: 0.9rem 1rem 2rem;
+        padding: 0.9rem 1rem 3.2rem;
     }
     [data-testid="column"] [data-testid="column"],
     [data-testid="stColumn"] [data-testid="stColumn"],
@@ -35,6 +41,12 @@
     /* Cut two of the six floating emoji to reduce GPU cost on mobile. */
     .f5, .f6 { display: none; }
 
+    /* Save buttons sit closer to the audio player on mobile too. */
+    .ss-dl-cell {
+        margin: 0.15rem 0 0 0 !important;
+    }
+
+    /* Primary button — static, full-width on mobile, no animation. */
     :is(
         .stButton > button[kind="primary"],
         button[kind="primary"],
@@ -47,5 +59,8 @@
         min-height: 54px !important;
         height: 54px !important;
         padding: 0 1.4rem !important;
+        animation: none !important;
+        transform: none !important;
+        transition: none !important;
     }
 }

@@ -47,10 +47,11 @@ section.main > div.block-container {
     margin: 0 auto !important;
 }
 
+/* Reduced top margin pulls the two-page layout slightly up. */
 [data-testid="stHorizontalBlock"] {
     gap: 1.4rem !important;
     align-items: stretch !important;
-    margin-top: 1.4rem !important;
+    margin-top: 0.6rem !important;
 }
 
 /* =================================================================
@@ -60,8 +61,8 @@ section.main > div.block-container {
     width: 50% !important;
     flex: 1 1 0 !important;
     min-width: 0 !important;
-    padding: 1.1rem 1.4rem 2.4rem;
-    min-height: 66vh;
+    padding: 1.1rem 1.4rem 4rem;
+    min-height: calc(100vh - 10rem);
     border-radius: 26px;
     background: var(--paper);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
@@ -87,15 +88,12 @@ section.main > div.block-container {
     position: static !important;
 }
 
-/* Some Streamlit versions attach their own scroll container
-   to columns — kill it so the page scrolls naturally. */
 [data-testid="stColumn"],
 section[data-testid="stColumn"] {
     overflow: visible !important;
     max-height: none !important;
 }
 
-/* Right page glows softly while the loader is active */
 [data-testid="column"]:nth-of-type(2):has(.progress-inline) {
     background: linear-gradient(160deg, #fffef9 60%, #dff3ff 100%);
     animation: page-pulse 2.4s ease-in-out infinite;
@@ -111,9 +109,6 @@ section[data-testid="stColumn"] {
 
 /* =================================================================
    FLOATING BACKGROUND EMOJI
-   -----------------------------------------------------------------
-   Scene sits ABOVE the page background but BELOW the two page
-   cards & title. z-index 0 here, cards z-index 1, title z-index 2.
    ================================================================= */
 .scene {
     position: fixed;
@@ -272,8 +267,7 @@ section[data-testid="stColumn"] {
 .stImage img:hover { transform: rotate(0deg) scale(1.01); }
 
 /* =================================================================
-   QUEST PATH — 3-step adventure with progress states
-   (rendered ONLY in the empty state; disappears after upload)
+   QUEST PATH
    ================================================================= */
 .quest-path {
     display: flex;
@@ -398,7 +392,7 @@ section[data-testid="stColumn"] {
 }
 
 /* =================================================================
-   PRIMARY MAGIC BUTTON — bigger, magical, sparkling
+   PRIMARY MAGIC BUTTON — static, hard-centered
    ================================================================= */
 .stButton:has(button[kind="primary"]) {
     display: flex;
@@ -413,7 +407,6 @@ section[data-testid="stColumn"] {
     position: relative;
 }
 
-/* Sparkles floating around the button */
 .stButton:has(button[kind="primary"])::before,
 .stButton:has(button[kind="primary"])::after {
     content: "";
@@ -442,7 +435,6 @@ section[data-testid="stColumn"] {
     50%      { transform: scale(1.2) translateY(-8px); opacity: 1;   }
 }
 
-/* The button itself */
 .stButton > button[kind="primary"],
 button[kind="primary"],
 button[data-testid="baseButton-primary"] {
@@ -478,12 +470,11 @@ button[data-testid="baseButton-primary"] {
     justify-content: center !important;
     gap: 0.7rem !important;
 
-    animation:
-        magic-pulse 2.4s ease-in-out infinite,
-        glow-flicker 3.6s ease-in-out infinite;
+    animation: none !important;
+    transform: none !important;
+    transition: none !important;
 
     transform-origin: center;
-    transition: transform 0.12s ease, box-shadow 0.12s ease;
     position: relative;
     overflow: hidden;
     cursor: pointer;
@@ -505,10 +496,8 @@ button[kind="primary"]::before {
     box-shadow:
         inset 0 0 0 2px rgba(255, 255, 255, 0.6),
         0 2px 6px rgba(184, 50, 90, 0.35);
-    transition: transform 0.3s ease;
 }
 
-/* Shimmer sweep across the button */
 .stButton > button[kind="primary"]::after,
 button[kind="primary"]::after {
     content: "" !important;
@@ -541,34 +530,16 @@ button[kind="primary"] > * {
     z-index: 2;
 }
 
-.stButton > button[kind="primary"]:hover::before,
-button[kind="primary"]:hover::before {
-    animation: wand-wave 0.6s ease-in-out;
-}
-@keyframes wand-wave {
-    0%, 100% { transform: rotate(0deg); }
-    25%      { transform: rotate(-18deg); }
-    75%      { transform: rotate(18deg); }
-}
-
 .stButton > button[kind="primary"]:not(:disabled):hover,
-button[kind="primary"]:not(:disabled):hover {
-    transform: translateY(-3px) scale(1.03);
-    box-shadow:
-        0 7px 0 var(--coral-deep),
-        0 10px 0 var(--coral-deeper),
-        0 20px 30px rgba(255, 111, 145, 0.55),
-        inset 0 2px 0 rgba(255, 255, 255, 0.5) !important;
-    animation-play-state: paused;
-}
-
+button[kind="primary"]:not(:disabled):hover,
 .stButton > button[kind="primary"]:not(:disabled):active,
 button[kind="primary"]:not(:disabled):active {
-    transform: translateY(4px) scale(0.97);
+    transform: none !important;
     box-shadow:
-        0 1px 0 var(--coral-deep),
-        0 2px 0 var(--coral-deeper),
-        0 6px 12px rgba(255, 111, 145, 0.45) !important;
+        0 5px 0 var(--coral-deep),
+        0 7px 0 var(--coral-deeper),
+        0 14px 26px rgba(255, 111, 145, 0.45),
+        inset 0 2px 0 rgba(255, 255, 255, 0.4) !important;
 }
 
 .stButton > button[kind="primary"]:focus-visible {
@@ -576,48 +547,50 @@ button[kind="primary"]:not(:disabled):active {
     outline-offset: 5px !important;
 }
 
-@keyframes magic-pulse {
-    0%, 100% { transform: scale(1)    rotate(-0.3deg); }
-    50%      { transform: scale(1.02) rotate(0.3deg);  }
-}
-@keyframes glow-flicker {
-    0%, 100% {
-        box-shadow:
-            0 5px 0 var(--coral-deep),
-            0 7px 0 var(--coral-deeper),
-            0 14px 26px rgba(255, 111, 145, 0.45),
-            inset 0 2px 0 rgba(255, 255, 255, 0.4);
-    }
-    50% {
-        box-shadow:
-            0 5px 0 var(--coral-deep),
-            0 7px 0 var(--coral-deeper),
-            0 18px 34px rgba(255, 204, 51, 0.55),
-            inset 0 2px 0 rgba(255, 255, 255, 0.55);
-    }
-}
-
 .stButton > button[kind="primary"]:disabled,
 button[kind="primary"]:disabled {
+    width: auto !important;
+    min-width: 260px !important;
+    max-width: 92% !important;
+    min-height: 62px !important;
+    height: 62px !important;
+    padding: 0 2rem !important;
+    border-radius: 999px !important;
+    border: 4px solid #ffffff !important;
+
+    font-family: 'Baloo 2', 'Fredoka', cursive !important;
+    font-size: 1.25rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.03em !important;
+    color: #fff !important;
+    text-shadow: 0 2px 3px rgba(140, 34, 66, 0.35) !important;
+
     background:
-        radial-gradient(circle at 30% 20%, #ffe0ea 0%, transparent 50%),
-        linear-gradient(180deg, #ffc9d8 0%, #fbaec4 100%) !important;
-    color: #ffffffdd !important;
-    border: 4px solid #ffffffdd !important;
+        radial-gradient(circle at 25% 25%, #ffd0dd 0%, transparent 45%),
+        radial-gradient(circle at 80% 80%, #ffa7c1 0%, transparent 50%),
+        linear-gradient(180deg, #ff9bb4 0%, #ff6f91 45%, #e54a76 100%) !important;
+
     box-shadow:
-        0 4px 0 #d68a9e,
-        0 6px 0 #b56e82,
-        0 10px 16px rgba(0, 0, 0, 0.08) !important;
-    opacity: 0.95 !important;
+        0 5px 0 var(--coral-deep),
+        0 7px 0 var(--coral-deeper),
+        0 14px 26px rgba(255, 111, 145, 0.45),
+        inset 0 2px 0 rgba(255, 255, 255, 0.4) !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.7rem !important;
+
+    opacity: 1 !important;
     filter: none !important;
     cursor: not-allowed !important;
     animation: none !important;
     transform: none !important;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15) !important;
+    transition: none !important;
 }
 .stButton > button[kind="primary"]:disabled::before,
 button[kind="primary"]:disabled::before {
-    opacity: 0.6;
+    opacity: 1 !important;
 }
 .stButton > button[kind="primary"]:disabled::after,
 button[kind="primary"]:disabled::after {
@@ -625,7 +598,7 @@ button[kind="primary"]:disabled::after {
 }
 
 /* =================================================================
-   DOWNLOAD LINKS — sky blue (voice) & coral (story)
+   DOWNLOAD LINKS
    ================================================================= */
 .ss-dl-cell {
     display: flex !important;
@@ -635,7 +608,7 @@ button[kind="primary"]:disabled::after {
     width: 100% !important;
     min-width: 155px !important;
     flex-shrink: 0 !important;
-    margin: -2.15rem 0 !important;
+    margin: 0.15rem 0 0 !important;
 }
 
 .ss-dl-link {
@@ -711,7 +684,7 @@ button[kind="primary"]:disabled::after {
 }
 
 /* =================================================================
-   STORY TEXT — fully visible, no scroll (100 words max fits easily)
+   STORY TEXT
    ================================================================= */
 .story-text {
     font-family: 'Baloo 2', 'Comic Sans MS', system-ui, sans-serif;
@@ -764,12 +737,12 @@ button[kind="primary"]:disabled::after {
     padding: 0.4rem;
     background: #e6f6ff;
     box-shadow: 0 6px 0 var(--sky-dark), 0 12px 22px rgba(89, 200, 255, 0.30);
-    margin: 0.3rem 0 0.7rem;
+    margin: 0.3rem 0 0.3rem;
 }
 .stAudio audio { width: 100%; height: 44px; border-radius: 14px; }
 
 /* =================================================================
-   EMPTY STATE — Ollie + original guidance text
+   EMPTY STATE
    ================================================================= */
 .page-empty {
     display: flex;
@@ -952,7 +925,7 @@ button[kind="primary"]:disabled::after {
 }
 
 /* =================================================================
-   PROGRESS — inline 3D turning-book loader
+   PROGRESS
    ================================================================= */
 .progress-inline {
     display: flex;

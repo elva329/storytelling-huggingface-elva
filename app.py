@@ -796,7 +796,30 @@ def render_upload_page() -> tuple[Any, bool]:
     # Rewind the buffer so a second Image.open() in the pipeline sees
     # the same bytes.
     uploaded.seek(0)
-    st.image(Image.open(uploaded), use_container_width=True)
+
+    # Validate the upload RIGHT HERE so corrupt / truncated files fail
+    # with a friendly message instead of blowing up deep inside the
+    # pipeline. PIL's ``Image.open()`` is lazy — it only parses the
+    # header — so a file with a valid header but a truncated body
+    # (e.g. an interrupted download) would otherwise look fine here
+    # and only crash when the BLIP pipeline tries to read pixels.
+    # Calling ``.load()`` forces a full decode NOW, catching both
+    # "not an image at all" (``UnidentifiedImageError``) and "valid
+    # header, body cut off" (``OSError`` on decode).
+    try:
+        preview_image = Image.open(uploaded)
+        preview_image.load()
+    except (Image.UnidentifiedImageError, OSError) as exc:
+        logger.warning("User uploaded an unreadable image: %s", exc)
+        st.error(
+            "😯 We couldn't read that picture — it looks broken or "
+            "isn't really a PNG / JPG / WEBP. Please try a different one!"
+        )
+        # Skip the preview + button so the user can't trigger the
+        # pipeline on a known-bad file.
+        return uploaded, False
+
+    st.image(preview_image, use_container_width=True)
 
     if st.session_state.phase == "working":
         _html(

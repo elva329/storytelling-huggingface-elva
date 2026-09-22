@@ -1,0 +1,362 @@
+/* ==========================================================================
+   🎬  StorySpark — animations.css
+   @keyframes, floating scene, progress loader, and reduced-motion fallback.
+   No static widget rules live here — only motion.
+   Load AFTER components.css, BEFORE responsive.css.
+   ========================================================================== */
+
+/* =================================================================
+   FLOATING BACKGROUND EMOJI
+   -----------------------------------------------------------------
+   Scene sits ABOVE the page background but BELOW the two page
+   cards & title. z-index 0 here, cards z-index 1, title z-index 2.
+   top/right/bottom/left are declared BEFORE `inset` so older Safari
+   (which doesn't understand `inset`) still expands the scene.
+   ================================================================= */
+.scene {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    inset: 0;                  /* modern browsers */
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+.float {
+    position: absolute;
+    font-size: 3rem;
+    line-height: 1;
+    opacity: 0.65;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.08));
+    animation: drift 9s ease-in-out infinite;
+    will-change: transform;
+}
+.f1 { top: 6%;     left: 3%;   animation-delay: 0s;   font-size: 3.4rem; }
+.f2 { top: 12%;    right: 4%;  animation-delay: 1.2s; font-size: 2.6rem; }
+.f3 { top: 55%;    left: 2%;   animation-delay: 2.1s; font-size: 3rem; }
+.f4 { top: 40%;    right: 2%;  animation-delay: 0.6s; font-size: 3.2rem; }
+.f5 { bottom: 8%;  left: 8%;   animation-delay: 1.8s; font-size: 2.4rem; }
+.f6 { bottom: 12%; right: 3%;  animation-delay: 2.4s; font-size: 2.8rem; }
+
+@keyframes drift {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50%      { transform: translateY(-12px) rotate(3deg); }
+}
+
+/* =================================================================
+   RAINBOW TITLE — wiggle (referenced by .title-main in style.css)
+   ================================================================= */
+@keyframes wiggle {
+    0%, 100% { transform: rotate(-1deg); }
+    50%      { transform: rotate(1deg);  }
+}
+
+/* =================================================================
+   PAGE GLOW — page-pulse (referenced by the loading right column)
+   ================================================================= */
+@keyframes page-pulse {
+    0%, 100% { box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.06),
+        0 0 0 4px rgba(89, 200, 255, 0.18); }
+    50%      { box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.06),
+        0 0 0 8px rgba(89, 200, 255, 0.10); }
+}
+
+/* =================================================================
+   OLLIE (story-guide) KEYFRAMES
+   Referenced by selectors in components.css.
+   ================================================================= */
+@keyframes guide-bob {
+    0%, 100% { transform: translateY(0) rotate(-1deg); }
+    50%      { transform: translateY(-6px) rotate(1deg); }
+}
+
+@keyframes blink {
+    0%, 92%, 100% { transform: scaleY(1); }
+    95%           { transform: scaleY(0.15); }
+}
+
+@keyframes look-around {
+    0%, 100%  { transform: translate(0, 0); }
+    25%       { transform: translate(-3px, 1px); }
+    50%       { transform: translate(3px, -1px); }
+    75%       { transform: translate(0, 1px); }
+}
+
+@keyframes wing-wave {
+    0%, 100% { transform: rotate(0deg); }
+    50%      { transform: rotate(-12deg); }
+}
+
+/* =================================================================
+   PROGRESS — inline 3D turning-book loader
+   ================================================================= */
+.progress-inline {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 58vh;
+    text-align: center;
+    font-family: 'Baloo 2', cursive;
+    padding: 1rem;
+    animation: fade-in 0.25s ease;
+}
+
+.turning-book {
+    position: relative;
+    width: 150px;
+    height: 100px;
+    margin-bottom: 1.6rem;
+    perspective: 800px;
+    perspective-origin: 50% 50%;
+    filter: drop-shadow(0 12px 20px rgba(255, 111, 145, 0.22));
+    animation: book-breathe 3s ease-in-out infinite;
+    transform-style: preserve-3d;
+}
+@keyframes book-breathe {
+    0%, 100% { transform: translateY(0)    rotate(-0.4deg); }
+    50%      { transform: translateY(-4px) rotate(0.4deg);  }
+}
+
+.turning-book .base {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    inset: 0;                  /* modern browsers */
+    display: flex;
+    z-index: 1;
+}
+.turning-book .base .left,
+.turning-book .base .right {
+    flex: 1;
+    border: 3px solid var(--coral);
+    background: linear-gradient(180deg, #fffdf6 0%, #ffe9f1 100%);
+    box-shadow:
+        inset 0 -12px 18px -12px rgba(0, 0, 0, 0.10),
+        0 2px 4px rgba(0, 0, 0, 0.06);
+}
+.turning-book .base .left {
+    border-radius: 12px 3px 3px 12px;
+    border-right: none;
+    background: linear-gradient(180deg, #e6f6ff 0%, #fffdf6 100%);
+    border-color: var(--sky);
+    position: relative;
+}
+.turning-book .base .right {
+    border-radius: 3px 12px 12px 3px;
+    border-left: none;
+}
+.turning-book .base .left::before {
+    content: "";
+    position: absolute;
+    top: 22px;
+    left: 14px;
+    width: 44px;
+    height: 3px;
+    background: rgba(89, 200, 255, 0.40);
+    border-radius: 2px;
+    box-shadow:
+        0 14px 0 rgba(89, 200, 255, 0.40),
+        0 28px 0 rgba(89, 200, 255, 0.40),
+        0 42px 0 rgba(89, 200, 255, 0.40);
+}
+.turning-book .spine {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 50%;
+    width: 8px;
+    transform: translateX(-50%);
+    background: linear-gradient(90deg,
+        rgba(0, 0, 0, 0.05) 0%,
+        rgba(0, 0, 0, 0.28) 50%,
+        rgba(0, 0, 0, 0.05) 100%);
+    border-radius: 50%;
+    filter: blur(0.6px);
+    z-index: 3;
+    pointer-events: none;
+}
+.turning-book .page {
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    width: 72px;
+    height: 94px;
+    background: linear-gradient(180deg, #ffffff 0%, #fff4f8 100%);
+    border: 3px solid var(--coral);
+    border-left: none;
+    border-radius: 3px 12px 12px 3px;
+    transform-origin: left center;
+    transform-style: preserve-3d;
+    backface-visibility: visible;
+    box-shadow:
+        0 4px 10px rgba(0, 0, 0, 0.10),
+        inset -8px 0 12px -10px rgba(0, 0, 0, 0.14);
+    animation: turn-page 2.4s cubic-bezier(.65, .05, .36, 1) infinite;
+    z-index: 2;
+    will-change: transform, box-shadow;
+}
+@keyframes turn-page {
+    0% {
+        transform: rotateY(0deg);
+        box-shadow:
+            0 4px 10px rgba(0, 0, 0, 0.10),
+            inset -8px 0 12px -10px rgba(0, 0, 0, 0.14);
+    }
+    45% {
+        transform: rotateY(-88deg);
+        box-shadow:
+            0 10px 20px rgba(0, 0, 0, 0.22),
+            inset -14px 0 20px -12px rgba(0, 0, 0, 0.22);
+    }
+    55% {
+        transform: rotateY(-92deg);
+        box-shadow:
+            0 10px 20px rgba(0, 0, 0, 0.22),
+            inset -14px 0 20px -12px rgba(0, 0, 0, 0.22);
+    }
+    100% {
+        transform: rotateY(-180deg);
+        box-shadow:
+            0 4px 10px rgba(0, 0, 0, 0.10),
+            inset 8px 0 12px -10px rgba(0, 0, 0, 0.14);
+    }
+}
+.turning-book .page .line {
+    position: absolute;
+    left: 10px;
+    height: 3px;
+    background: rgba(255, 111, 145, 0.38);
+    border-radius: 2px;
+}
+.turning-book .page .line.l1 { top: 18px; width: 48px; }
+.turning-book .page .line.l2 { top: 34px; width: 40px; }
+.turning-book .page .line.l3 { top: 50px; width: 52px; }
+.turning-book .page .line.l4 { top: 66px; width: 34px; }
+
+.progress-inline .progress-emoji {
+    font-size: 2.6rem;
+    line-height: 1;
+    animation: floaty 1.4s ease-in-out infinite;
+    margin-bottom: 0.4rem;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.08));
+}
+.progress-inline .progress-bar {
+    width: min(340px, 72vw);
+    height: 16px;
+    background: #ffe8f0;
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 0.9rem 0 0.7rem;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+.progress-inline .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg,
+        var(--coral), var(--sunny), var(--grass), var(--sky));
+    background-size: 200% 100%;
+    border-radius: 999px;
+    transition: width 0.6s cubic-bezier(.4, 1.2, .6, 1);
+    animation: shift 2s linear infinite;
+}
+@keyframes shift {
+    0%   { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+}
+.progress-inline .progress-text {
+    font-size: 1.18rem;
+    font-weight: 800;
+    color: var(--ink);
+}
+
+/* Animated dots — cross-browser via clip-path (content animation
+   only works in Chrome/Edge). The base `content` is static "..."
+   and a clip-path hides progressively more of it on a loop. */
+.progress-inline .progress-text::after {
+    content: "...";
+    display: inline-block;
+    vertical-align: bottom;
+    width: 1.2em;
+    overflow: hidden;
+    white-space: nowrap;
+    animation: dots-clip 1.4s steps(4, end) infinite;
+}
+@keyframes dots-clip {
+    0%   { clip-path: inset(0 100% 0 0); }
+    25%  { clip-path: inset(0 66% 0 0); }
+    50%  { clip-path: inset(0 33% 0 0); }
+    75%  { clip-path: inset(0 0 0 0); }
+    100% { clip-path: inset(0 100% 0 0); }
+}
+
+@keyframes floaty {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
+}
+
+/* =================================================================
+   MAGIC BUTTON KEYFRAMES (referenced by selectors in components.css)
+   ================================================================= */
+@keyframes sparkle-orbit {
+    0%, 100% { transform: scale(0.6) translateY(0);    opacity: 0.4; }
+    50%      { transform: scale(1.2) translateY(-8px); opacity: 1;   }
+}
+
+@keyframes shimmer-sweep {
+    0%   { left: -75%; }
+    40%  { left: 120%; }
+    100% { left: 120%; }
+}
+
+@keyframes wand-wave {
+    0%, 100% { transform: rotate(0deg); }
+    25%      { transform: rotate(-18deg); }
+    75%      { transform: rotate(18deg); }
+}
+
+@keyframes magic-pulse {
+    0%, 100% { transform: scale(1)    rotate(-0.3deg); }
+    50%      { transform: scale(1.02) rotate(0.3deg);  }
+}
+@keyframes glow-flicker {
+    0%, 100% {
+        box-shadow:
+            0 5px 0 var(--coral-deep),
+            0 7px 0 var(--coral-deeper),
+            0 14px 26px rgba(255, 111, 145, 0.45),
+            inset 0 2px 0 rgba(255, 255, 255, 0.4);
+    }
+    50% {
+        box-shadow:
+            0 5px 0 var(--coral-deep),
+            0 7px 0 var(--coral-deeper),
+            0 18px 34px rgba(255, 204, 51, 0.55),
+            inset 0 2px 0 rgba(255, 255, 255, 0.55);
+    }
+}
+
+/* =================================================================
+   REDUCED MOTION — disable every animation / transition for users
+   who request less motion at the OS level.
+   The wildcard handles all animated elements; we only need to
+   hide the floating scene explicitly.
+   ================================================================= */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    .scene { display: none !important; }
+}

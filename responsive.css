@@ -1,0 +1,51 @@
+/* ==========================================================================
+   📱  StorySpark — responsive.css
+   Media queries only. Loaded LAST so overrides win.
+   Covers both `column` (older Streamlit) and `stColumn` (newer).
+   ========================================================================== */
+
+@media (max-width: 900px) {
+    /* Mobile: drop background-attachment: fixed — janky on iOS scroll. */
+    .stApp { background-attachment: scroll; }
+
+    .title-main { font-size: 2.2rem; }
+    .title-sub  { font-size: 1rem; }
+
+    [data-testid="column"],
+    [data-testid="stColumn"],
+    section[data-testid="stColumn"] {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        min-height: auto !important;
+        padding: 0.9rem 1rem 2rem;
+    }
+    [data-testid="column"] [data-testid="column"],
+    [data-testid="stColumn"] [data-testid="stColumn"],
+    [data-testid="column"] [data-testid="stColumn"],
+    [data-testid="stColumn"] [data-testid="column"] {
+        padding: 0 !important;
+    }
+
+    .page-heading { font-size: 1.25rem; }
+    .story-text   { font-size: 1.1rem; }
+    .float        { font-size: 2rem; opacity: 0.4; }
+    .page-empty   { min-height: 40vh; }
+    .progress-inline { min-height: 40vh; }
+
+    /* Cut two of the six floating emoji to reduce GPU cost on mobile. */
+    .f5, .f6 { display: none; }
+
+    :is(
+        .stButton > button[kind="primary"],
+        button[kind="primary"],
+        button[data-testid="baseButton-primary"],
+        button[data-testid="stBaseButton-primary"]
+    ) {
+        min-width: 0 !important;
+        width: 100% !important;
+        font-size: 1.1rem !important;
+        min-height: 54px !important;
+        height: 54px !important;
+        padding: 0 1.4rem !important;
+    }
+}

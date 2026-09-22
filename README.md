@@ -27,7 +27,7 @@ hands and big imaginations. 🌈
 | Step | What it does                | Technology                                                         |
 | ---- | --------------------------- | ------------------------------------------------------------------ |
 | 1    | Understand an uploaded pic  | `Salesforce/blip-image-captioning-base` (image-to-text)            |
-| 2    | Turn the caption into a tale | `pranaykoppula/tiny-stories-3M` (or `distilgpt2` fallback)         |
+| 2    | Turn the caption into a tale | `roneneldan/TinyStories-33M` (or `distilgpt2` fallback)              |
 | 3    | Read the story out loud      | `gTTS` (Google Text-to-Speech → MP3)                               |
 | ⬇    | Download the audio & text    | Streamlit built-in download buttons                                |
 
@@ -46,7 +46,6 @@ hands and big imaginations. 🌈
 .
 ├── app.py                    # Main Streamlit application (all logic in here)
 ├── requirements.txt          # Python dependencies for Streamlit Cloud
-├── packages.txt              # OS-level deps (ffmpeg for gTTS playback)
 ├── .streamlit/
 │   └── config.toml           # Kid-friendly theme: pink primary, pastel bg
 ├── README.md                 # ← you are here
@@ -97,11 +96,11 @@ visit after a redeploy will take ~30 s while the BLIP model is downloaded.
 | Model                                | Task                  | Why we picked it                                         |
 | ------------------------------------ | --------------------- | -------------------------------------------------------- |
 | `Salesforce/blip-image-captioning-base` | Image captioning  | Suggested in the assignment, compact, friendly outputs    |
-| `pranaykoppula/tiny-stories-3M`      | Story generation      | Trained on the TinyStories children's corpus — very safe vocabulary |
+| `roneneldan/TinyStories-33M`         | Story generation      | Trained on the TinyStories children's corpus — very safe vocabulary |
 | `distilgpt2` (fallback)              | Story generation      | Bullet-proof backup if TinyStories model isn't reachable |
 | `gTTS`                               | Text-to-speech        | No model to host, produces MP3 in one call               |
 
-If `pranaykoppula/tiny-stories-3M` is unavailable on the Hub, the app logs
+If `roneneldan/TinyStories-33M` is unavailable on the Hub, the app logs
 the failure and silently switches to `distilgpt2`.
 
 ---

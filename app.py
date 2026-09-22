@@ -61,14 +61,26 @@ st.set_page_config(
 )
 
 
-def _load_css(*file_names: str) -> None:
+def load_css(
+    *file_names: str,
+    base_dir: str | Path = "styles",
+) -> None:
     """Inject the project's kid-friendly stylesheets in load order.
 
-    Later files override earlier ones on selector ties, so the chain MUST be:
+    Resolves every ``file_name`` relative to ``base_dir`` (default
+    ``"styles"``) inside the directory that contains ``app.py``. Using
+    :mod:`pathlib` keeps the resolution reliable on Streamlit Cloud,
+    where the working directory may differ from the app's source
+    directory.
+
+    Later files override earlier ones on selector ties, so the chain
+    MUST be::
+
         style.css → components.css → animations.css → responsive.css
     """
+    styles_root = Path(__file__).parent / base_dir
     for file_name in file_names:
-        css_path = Path(__file__).parent / file_name
+        css_path = styles_root / file_name
         if css_path.exists():
             st.markdown(
                 f"<style>{css_path.read_text(encoding='utf-8')}</style>",
@@ -76,6 +88,14 @@ def _load_css(*file_names: str) -> None:
             )
         else:
             logger.warning("CSS file not found, skipping: %s", css_path)
+
+
+load_css(
+    "style.css",
+    "components.css",
+    "animations.css",
+    "responsive.css",
+)
 
 
 def _html(content: str) -> None:
@@ -90,14 +110,6 @@ def _page_heading(emoji: str, text: str) -> None:
         f'<span class="page-emoji">{emoji}</span>'
         f'<span>{text}</span></div>'
     )
-
-
-_load_css(
-    "style.css",
-    "components.css",
-    "animations.css",
-    "responsive.css",
-)
 
 
 # ---------------------------------------------------------------------------

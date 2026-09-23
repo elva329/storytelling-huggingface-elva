@@ -953,13 +953,16 @@ def render_upload_page() -> tuple[Any, bool]:
 
     st.image(preview_image, use_container_width=True)
 
-    # NOTE: we deliberately do NOT disable the button while phase ==
-    # "working". Streamlit swaps a disabled <button> for a different
-    # DOM node (different data-testid, no tooltip wrapper), which
-    # causes a visible 1-2px position shift. Instead we keep the
-    # button enabled and rely on the pipeline guard below — a click
-    # while phase == "working" is a harmless no-op because
-    # _run_story_pipeline only transitions out of "idle".
+    # The button is automatically locked out during the working phase
+    # by CSS rules keyed on the `.progress-inline` loader
+    # (`body:has(.progress-inline) …` in components.css). We
+    # intentionally do NOT use Streamlit's `disabled=True` because
+    # disabling a button via the HTML `disabled` attribute swaps
+    # Streamlit's internal DOM node (different testid, no tooltip
+    # wrapper), producing a visible 1-2px position shift on the magic
+    # button. CSS-only lockout keeps the DOM identical → zero jitter.
+    # The pipeline guard below still serves as defense-in-depth for
+    # any click that slips through.
     _left, _center, _right = st.columns([1, 4, 1])
     with _center:
         make_story = st.button(

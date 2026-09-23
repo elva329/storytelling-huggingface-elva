@@ -847,3 +847,60 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
     0%, 100% { transform: translateY(0); }
     50%      { transform: translateY(-10px); }
 }
+
+/* =================================================================
+   GENERATING-PHASE LOCKOUT
+   -----------------------------------------------------------------
+   When `phase == "working"` the right column paints the
+   `.progress-inline` turning-book loader. We use that as a global
+   "we're busy" signal: while it's on screen, the user MUST NOT be
+   able to:
+
+     • upload a NEW picture       (Browse files + drag-and-drop)
+     • REMOVE the current picture (the X button next to the filename)
+     • click "Make My Story!"     (would re-fire the pipeline)
+
+   Why CSS instead of `st.button(..., disabled=True)` /
+   `st.file_uploader(..., disabled=True)`?
+
+     Streamlit swaps a disabled <button> for a different DOM node
+     (different testid, no tooltip wrapper) → a visible 1-2px
+     position shift on the magic button. CSS-only lockout keeps
+     the DOM identical → zero jitter.
+
+   Visual values mirror the existing `.stButton > button:disabled`
+   rule so the locked-out look matches the project's standard
+   disabled-button styling.
+   ================================================================= */
+
+/* --- File uploader: Browse files button, X clear button, dropzone --- */
+body:has(.progress-inline) [data-testid="stFileUploader"],
+body:has(.progress-inline) [data-testid="stFileUploader"] * {
+    pointer-events: none !important;
+    cursor: not-allowed !important;
+    user-select: none !important;
+}
+body:has(.progress-inline) [data-testid="stFileUploader"] {
+    opacity: 0.55 !important;
+    filter: saturate(0.45) !important;
+}
+body:has(.progress-inline) [data-testid="stFileUploader"] button {
+    background: #ccc !important;
+    box-shadow: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+}
+
+/* --- Magic "Make My Story!" button -------------------------------
+   The locked geometry from the primary-button rules above stays
+   intact; we only override the "feel" properties. */
+body:has(.progress-inline) .stButton > button[kind="primary"],
+body:has(.progress-inline) .stButton > button[data-testid="baseButton-primary"],
+body:has(.progress-inline) .stButton > button[data-testid="stBaseButton-primary"] {
+    pointer-events: none !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.15) !important;
+    filter: saturate(0.4) !important;
+    opacity: 0.55 !important;
+}

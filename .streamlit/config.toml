@@ -30,9 +30,9 @@ textColor = "#2f2a3a"
 font = "sans serif"
 
 [server]
-# Enforce the 25 MB limit that the UI's quest path advertises.
+# Enforce the 5 MB limit that the UI's quest path advertises.
 # Anything larger is rejected by Streamlit before reaching the app.
-maxUploadSize = 25
+maxUploadSize = 5
 
 [browser]
 # Suppress the "Made with Streamlit" footer for a cleaner storybook look.

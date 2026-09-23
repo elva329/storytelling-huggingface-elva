@@ -18,7 +18,7 @@ Build a Python storytelling app that (1) accepts an uploaded image, (2) generate
 
 ## ✨ Features
 
-- Upload a picture (PNG / JPG / WEBP, ≤ 25 MB)
+- Upload a picture (PNG / JPG / WEBP, ≤ 5 MB)
 - Automatic image captioning (BLIP)
 - 50–100-word story generation (TinyStories)
 - Text-to-speech playback (gTTS)

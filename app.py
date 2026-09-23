@@ -609,7 +609,7 @@ def _looks_offline(exc: BaseException) -> bool:
 
 # (icon, title, sub). The '&' in "Listen & save" is pre-escaped for HTML.
 _QUEST_STEPS: list[tuple[str, str, str]] = [
-    ("🎨", "Pick a picture",    "PNG · JPG · WEBP · up to 25 MB"),
+    ("🎨", "Pick a picture",    "PNG · JPG · WEBP · up to 5 MB"),
     ("✨", "Make my story",     "Tap the big pink button"),
     ("🎧", "Listen &amp; save", "Hear your story come alive"),
 ]

@@ -1,7 +1,6 @@
 /* ==========================================================================
    StorySpark — responsive.css
-   Loaded LAST so overrides win. Covers both `column` (older Streamlit)
-   and `stColumn` (newer Streamlit) selectors.
+   Loaded LAST so overrides win.
    ========================================================================== */
 
 @media (max-width: 900px) {
@@ -44,8 +43,6 @@
         margin: 0.15rem 0 0 0 !important;
     }
 
-    /* Primary button: full-width, static, no animation or transform on
-       hover/active so it never shifts under the user's finger. */
     :is(
         .stButton > button[kind="primary"],
         button[kind="primary"],

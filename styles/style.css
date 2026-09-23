@@ -36,8 +36,6 @@
     color: var(--ink);
 }
 
-/* Streamlit's default block-container is narrower than we want and its
-   horizontal padding shifts between releases; pin it to a known box. */
 .main .block-container,
 [data-testid="stAppViewContainer"] .block-container,
 section.main > div.block-container {

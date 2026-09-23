@@ -3,8 +3,7 @@
    Load AFTER components.css, BEFORE responsive.css.
 
    This is the single source of truth for every @keyframes rule in the
-   project, plus the selectors that consume those keyframes. No other
-   file may define a @keyframes.
+   project, plus the selectors that consume those keyframes.
    ========================================================================== */
 
 /* -------------------------------------------------------------------------

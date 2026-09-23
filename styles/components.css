@@ -247,14 +247,6 @@
 /* -------------------------------------------------------------------------
    Primary magic button — sole owner of every primary-button rule.
 
-   Design contract: the button's box model, background, wand icon, and
-   shimmer must be byte-for-byte identical in enabled and disabled
-   states. Streamlit swaps the DOM node when `disabled` toggles on a
-   `st.button`, and any style difference between the two states shows
-   up as a 1–2px jitter. The app avoids `disabled=True` at runtime
-   (see the lockout at the bottom of this file) — the `:disabled`
-   rules below exist only as a visual guardrail.
-
    Streamlit's primary-button testid has changed across releases
    (`baseButton-primary`, `stBaseButton-primary`), so the selectors
    match all known variants.
@@ -973,15 +965,6 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
 
 /* -------------------------------------------------------------------------
    Generating-phase lockout.
-
-   The app deliberately does NOT use Streamlit's `disabled=True` on the
-   uploader or the magic button: that would swap the DOM node and cause
-   a visible reflow. Instead, the presence of `.progress-inline` on the
-   page is used as a "busy" signal.
-
-   Primary lockout lives in components.css (see the primary-button
-   section). Both selectors are kept so the lockout applies even if
-   only one of the two files loads.
    ------------------------------------------------------------------------- */
 
 body:has(.progress-inline) [data-testid="stFileUploader"],

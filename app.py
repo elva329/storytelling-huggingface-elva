@@ -959,13 +959,24 @@ def render_upload_page() -> tuple[Any, bool]:
             '{pointer-events:none;opacity:0.55;}</style>'
         )
 
-    make_story = st.button(
-        "Make My Story!",
-        type="primary",
-        help="Tap to make a story from your picture ✨",
-        key="make_story_btn",
-        disabled=(st.session_state.phase == "working"),
-    )
+    # Center the button below the uploaded image using a 3-column layout.
+    # The center column is wider so the button has room to breathe.
+    _left, _center, _right = st.columns([1, 4, 1])
+    with _center:
+        make_story = st.button(
+            "Make My Story!",
+            type="primary",
+            help="Tap to make a story from your picture ✨",
+            key="make_story_btn",
+            disabled=(st.session_state.phase == "working"),
+        )
+
+    # Happy-path return: the file is valid and the button is on screen.
+    # Returning (uploaded, make_story) lets the caller in main() unpack
+    # the result and forward the button-click into _run_story_pipeline.
+    # Without this, the function would fall off the end and implicitly
+    # return None, which would crash the `uploaded, make_story = ...`
+    # unpacking in main().
     return uploaded, make_story
 
 

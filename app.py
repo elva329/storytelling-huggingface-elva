@@ -347,17 +347,10 @@ def text2story(caption: str) -> str:
         generated = generated[len(prompt):]
 
     generated = re.sub(r"\s+", " ", generated).strip()
-    # Strip emojis BEFORE sentence repair: the emoji regex can remove
-    # characters that would otherwise confuse the trailing-punctuation
-    # scan. The final strip (below) catches anything the model emitted
-    # after repair re-introduced.
     generated = _strip_emojis(generated)
     generated = _repair_story_end(generated)
     generated = _truncate_to_word_count(
         generated, high=STORY_WORD_COUNT_TRIM_HIGH)
-    # distilgpt2 occasionally emits age-inappropriate words. Log for
-    # review but ship the model output unchanged: the product spec
-    # requires every word to come from the LLM.
     if not _is_safe_for_kids(generated):
         logger.warning(
             "Story output failed the kid-safety check; shipping the "
@@ -492,11 +485,6 @@ def _reset_session_state() -> None:
 # ---------------------------------------------------------------------------
 # 3c. Pipeline error helpers — kid-friendly surfaces for failures
 # ---------------------------------------------------------------------------
-
-# One message per failure stage. Kept centralised so the copy stays
-# consistent and is easy to translate or unit-test later. Each is short,
-# age-appropriate, and tells the user what to do next instead of
-# exposing technical details.
 
 _ERR_NO_IMAGE: str = (
     "👆 Please upload a picture first — then tap the magic button!"

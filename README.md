@@ -1,42 +1,35 @@
----
-title: StorySpark
-emoji: 📖
-colorFrom: pink
-colorTo: yellow
-sdk: streamlit
-sdk_version: 1.36.0
-app_file: app.py
-pinned: false
-license: mit
-short_description: Turn any kid's picture into a 50–100-word bedtime story, read aloud.
----
+# Fix 1 of 14 — Apply now
 
+**File:** `README.md`
+**Action:** Replace the entire file contents with the version below.
+
+```markdown
 # 📖 StorySpark — A Storytelling App for Kids (ages 3–10)
 
 > ISOM5240 Deep Learning Business Applications with Python — Individual Assignment
+> Author: Elva
 
-StorySpark turns **any picture** into a short, 50–100-word bedtime story
-that the app then **reads aloud**. It's built with **Hugging Face
-Transformers** pipelines and a friendly **Streamlit** UI designed for little
-hands and big imaginations. 🌈
+**Live app:** https://storytelling-huggingface-elva.streamlit.app/
+
+StorySpark turns any picture into a short, 50–100-word bedtime story
+that the app then reads aloud. Built with Hugging Face Transformers
+pipelines and a friendly Streamlit UI designed for little hands and
+big imaginations. 🌈
 
 ---
 
 ## ✨ Features
 
-| Step | What it does                | Technology                                                         |
-| ---- | --------------------------- | ------------------------------------------------------------------ |
-| 1    | Understand an uploaded pic  | `Salesforce/blip-image-captioning-base` (image-to-text)            |
-| 2    | Turn the caption into a tale | `roneneldan/TinyStories-33M` (or `distilgpt2` fallback)              |
-| 3    | Read the story out loud      | `gTTS` (Google Text-to-Speech → MP3)                               |
-| ⬇    | Download the audio & text    | Streamlit built-in download buttons                                |
+| Step | What it does                  | Technology                                                   |
+| ---- | ----------------------------- | ------------------------------------------------------------ |
+| 1    | Understands an uploaded image | `Salesforce/blip-image-captioning-base` (image-to-text)      |
+| 2    | Turns the caption into a tale | `roneneldan/TinyStories-33M` (fallback: `distilgpt2`)         |
+| 3    | Reads the story out loud      | `gTTS` (Google Text-to-Speech → MP3)                          |
+| 4    | Lets you save both outputs    | Two download links (voice MP3 + story TXT)                    |
 
-* 🦄 Kid-friendly theme: big rounded buttons, rainbow gradient, Comic Sans
-  headings, friendly emoji.
-* 🐢 “Slow & gentle voice” toggle for younger listeners.
-* 🎈 Balloons + a celebratory status block when the story is ready.
-* 💾 Models are loaded once with `@st.cache_resource`, so repeat visits are
-  instant.
+Kid-friendly touches: big rounded buttons, a rainbow title, an
+animated turning-book loader while the story is being written, and
+Ollie the Story Owl as the empty-state guide.
 
 ---
 
@@ -44,12 +37,18 @@ hands and big imaginations. 🌈
 
 ```
 .
-├── app.py                    # Main Streamlit application (all logic in here)
-├── requirements.txt          # Python dependencies for Streamlit Cloud
+├── app.py                    # Main Streamlit application
+├── constants.py              # Kid-safety blocklist + text-cleanup regexes
+├── requirements.txt          # Python dependencies
+├── runtime.txt               # Pins the Python version for Streamlit Cloud
 ├── .streamlit/
-│   └── config.toml           # Kid-friendly theme: pink primary, pastel bg
-├── README.md                 # ← you are here
-└── Individual Assignment.md  # Course brief
+│   └── config.toml           # Theme + upload-size config
+├── styles/
+│   ├── style.css             # Page layout + chrome
+│   ├── components.css        # Widget rules
+│   ├── animations.css        # Every @keyframes
+│   └── responsive.css        # Media queries (loaded last)
+└── README.md
 ```
 
 ---
@@ -57,48 +56,47 @@ hands and big imaginations. 🌈
 ## 🚀 Run locally
 
 ```bash
-# 1. Create a virtual environment (any Python 3.10+ works)
 python -m venv .venv
 source .venv/bin/activate           # Windows: .venv\Scripts\activate
 
-# 2. Install dependencies
 pip install -r requirements.txt
-
-# 3. Launch Streamlit
 streamlit run app.py
 ```
 
-The first launch downloads the two Hugging Face models (≈ 1.2 GB total).
-After that they are cached in `~/.cache/huggingface`, so subsequent runs
-start in seconds.
+The first launch downloads the two Hugging Face models (~1.2 GB total).
+After that they're cached in `~/.cache/huggingface`, so subsequent
+runs start in seconds. A warm-up step on the Streamlit side loads the
+models before the first user uploads a picture.
 
 Open <http://localhost:8501> and upload a picture to make your first story. 🎉
 
 ---
 
-## ☁️ Deploy to Streamlit Cloud
+## ☁️ Deployment
 
-1. Push this folder to a **public GitHub repository**.
+This app targets **Streamlit Community Cloud**.
+
+1. Push this folder to a public GitHub repository.
 2. Sign in at <https://share.streamlit.io> with your GitHub account.
-3. Click **“New app”** → pick the repo, branch (`main`), and main file
+3. Click **New app** → pick the repo, branch (`main`), and main file
    (`app.py`).
-4. (Optional) Add any **secrets** you need — *none are required for this app
-   because every model used is public on the Hub.*
-5. Hit **Deploy** 🚀
+4. No secrets are required — every model used is public on the Hub.
+5. Hit **Deploy**.
 
-Streamlit Cloud will install everything from `requirements.txt`. The first
-visit after a redeploy will take ~30 s while the BLIP model is downloaded.
+**Python version:** the app targets Python 3.11 (Streamlit Cloud's
+current default). It requires Python 3.10+ because `app.py` uses
+`X | Y` union syntax throughout.
 
 ---
 
 ## 🧠 Models at a glance
 
-| Model                                | Task                  | Why we picked it                                         |
-| ------------------------------------ | --------------------- | -------------------------------------------------------- |
-| `Salesforce/blip-image-captioning-base` | Image captioning  | Suggested in the assignment, compact, friendly outputs    |
-| `roneneldan/TinyStories-33M`         | Story generation      | Trained on the TinyStories children's corpus — very safe vocabulary |
-| `distilgpt2` (fallback)              | Story generation      | Bullet-proof backup if TinyStories model isn't reachable |
-| `gTTS`                               | Text-to-speech        | No model to host, produces MP3 in one call               |
+| Model                                  | Task              | Why we picked it |
+| -------------------------------------- | ----------------- | ---------------- |
+| `Salesforce/blip-image-captioning-base`| Image captioning  | Suggested in the assignment; compact and produces friendly captions |
+| `roneneldan/TinyStories-33M`           | Story generation  | Trained on the TinyStories children's corpus — safe vocabulary |
+| `distilgpt2` (fallback)                | Story generation  | Backup if TinyStories is unreachable |
+| `gTTS`                                 | Text-to-speech    | No model to host; produces MP3 in a single call |
 
 If `roneneldan/TinyStories-33M` is unavailable on the Hub, the app logs
 the failure and silently switches to `distilgpt2`.
@@ -107,10 +105,11 @@ the failure and silently switches to `distilgpt2`.
 
 ## 🛡 Safety notes for ages 3–10
 
-* Both text models emit short, plain-English prose using the TinyStories
-  vocabulary — they do not load the entire internet.
-* The UI strips out any audio controls that may be confusing for very
-  young kids; everything is one-tap.
+* TinyStories emits short, plain-English prose using a child-safe
+  vocabulary. `distilgpt2` is filtered through a blocklist before it
+  is shown (`constants.py`).
+* If a generation ever slips past the blocklist, the app retries up
+  to two more times before surfacing a friendly message.
 * No data is persisted: uploaded images are processed in memory and
   discarded when the session ends.
 
@@ -118,20 +117,9 @@ the failure and silently switches to `distilgpt2`.
 
 ## 🧪 Quick smoke test
 
-After `streamlit run app.py`, upload any photo (a pet, a toy, a drawing) and
-click **🎨 Make My Story!**. Within ~10–30 s you should see:
+Upload any photo (a pet, a toy, a drawing) and click **Make My Story!**.
+Within ~10–30 s you should see:
 
-1. A short caption (e.g. *“A small brown puppy playing in grass”*).
+1. A short caption derived from the picture.
 2. A 3–5-sentence story built around that subject.
-3. An HTML5 audio player you can hit **▶** on, plus a download button.
-
-If anything fails, check the Streamlit logs (`Manage app → Logs`) for the
-exact error and re-run.
-
----
-
-## 📝 License & credits
-
-Built as an individual assignment for **ISOM5240 — Deep Learning Business
-Applications with Python** at HKUST. Models belong to their respective
-Hugging Face authors; please respect their licenses.
+3. An HTML5 audio player you can hit **▶** on, plus two download links.

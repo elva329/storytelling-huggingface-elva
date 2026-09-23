@@ -1,15 +1,39 @@
+# =============================================================================
+# StorySpark — Streamlit runtime configuration
+# =============================================================================
+#
+# This file is read by Streamlit BEFORE the app's Python code runs, so
+# it controls the initial page paint (the moment before load_css()
+# injects the custom stylesheets) and any widget that is not explicitly
+# overridden in styles/*.css.
+#
+# Colors here must stay in sync with the CSS variables defined in
+# styles/style.css (:root) so the pre-CSS flash matches the styled page.
+# =============================================================================
+
 [theme]
-# Kid-friendly pastel theme 🌈 (matches style.css design tokens)
-primaryColor         = "#FF6FB5"   # warm pink — for buttons, accents
-backgroundColor      = "#FFF6E0"   # warm cream — page bg
-secondaryBackgroundColor = "#FFD6E7" # pastel pink — card backgrounds
-textColor            = "#2E2E2E"   # high-contrast dark ink
+# Primary accent — coral. Matches --coral in style.css.
+primaryColor = "#ff6f91"
+
+# Page background — warm cream. Matches the .stApp gradient's base tone.
+backgroundColor = "#fff8ec"
+
+# Secondary surfaces (input fields, code blocks, etc.) — paper white.
+secondaryBackgroundColor = "#fffef9"
+
+# Body text — soft dark purple. Matches --ink in style.css.
+textColor = "#2f2a3a"
+
+# Base font family. The custom CSS layer overrides this for the
+# storybook elements; this setting covers the few elements (widget
+# labels, error toasts) that sit outside the custom-styled tree.
+font = "sans serif"
 
 [server]
-# Avoid hot-reload loops while HF models download on first run
-fileWatcherType = "none"
-# Larger upload limit so kids can share pictures from phones/cameras
+# Enforce the 25 MB limit that the UI's quest path advertises.
+# Anything larger is rejected by Streamlit before reaching the app.
 maxUploadSize = 25
 
 [browser]
+# Suppress the "Made with Streamlit" footer for a cleaner storybook look.
 gatherUsageStats = false

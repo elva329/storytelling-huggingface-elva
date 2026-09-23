@@ -1,13 +1,12 @@
 /* ==========================================================================
-   📦  StorySpark — components.css
-   Widgets: quest path, buttons, download links, story text, word-count,
-   audio player, empty state (Ollie), progress loader, save-button row.
+   StorySpark — components.css
    Load AFTER style.css. All @keyframes live in animations.css.
+
+   Widget-level rules: quest path, buttons, download links, story text,
+   word-count chip, audio player, Ollie empty state, progress loader,
+   and the generating-phase lockout.
    ========================================================================== */
 
-/* =================================================================
-   QUEST PATH
-   ================================================================= */
 .quest-path {
     display: flex;
     flex-direction: column;
@@ -98,9 +97,7 @@
     border-radius: 2px;
 }
 
-/* =================================================================
-   DEFAULT BUTTONS (green) — applies to all non-primary buttons
-   ================================================================= */
+/* Base button styling. Primary buttons override the color/size below. */
 .stButton > button {
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
     border-radius: 999px !important;
@@ -137,11 +134,23 @@
     filter: saturate(0.4) !important;
 }
 
-/* =================================================================
-   PRIMARY MAGIC BUTTON — the definitive, conflict-free version
-   ================================================================= */
+/* -------------------------------------------------------------------------
+   Primary magic button.
 
-/* --- Step 1: Outer wrapper — fixed box, centered, never changes --- */
+   Design contract: the button's box model, background, wand icon, and
+   shimmer must be byte-for-byte identical in enabled and disabled
+   states. Streamlit swaps the DOM node when `disabled` toggles on a
+   `st.button`, and any style difference between the two states shows
+   up as a 1–2px jitter. The app avoids `disabled=True` at runtime
+   (see the lockout at the bottom of this file) — these `:disabled`
+   rules exist only as a visual guardrail.
+
+   Streamlit's primary-button testid has changed across releases
+   (`baseButton-primary`, `stBaseButton-primary`), so the selectors
+   match all known variants.
+   ------------------------------------------------------------------------- */
+
+/* Outer wrapper: fixed-size flex centering box. The button never moves. */
 div[data-testid="stButton"]:has(button[kind="primary"]),
 div[data-testid="stButton"]:has(button[data-testid="baseButton-primary"]),
 div[data-testid="stButton"]:has(button[data-testid="stBaseButton-primary"]),
@@ -160,7 +169,6 @@ div[data-testid="stButton"]:has(button[data-testid*="primary"]) {
     box-sizing: border-box !important;
 }
 
-/* --- Step 2: The button itself — identical enabled + disabled --- */
 div[data-testid="stButton"] > button[kind="primary"],
 div[data-testid="stButton"] > button[data-testid="baseButton-primary"],
 div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"],
@@ -214,7 +222,8 @@ button[data-testid="stBaseButton-primary"] {
     filter: none !important;
 }
 
-/* --- Step 2b: Force the inner button label typography --- */
+/* Streamlit wraps the button label in nested <p>/<span>/<div>; force
+   the label typography at every depth so the font never falls back. */
 :is(
     button[kind="primary"],
     button[data-testid="baseButton-primary"],
@@ -255,7 +264,7 @@ button[data-testid="stBaseButton-primary"]:disabled {
     cursor: not-allowed !important;
 }
 
-/* --- Step 3: Wand icon — identical in both states --- */
+/* Wand icon. Same in enabled and disabled states. */
 button[kind="primary"]::before,
 button[data-testid="baseButton-primary"]::before,
 button[data-testid="stBaseButton-primary"]::before {
@@ -276,7 +285,7 @@ button[data-testid="stBaseButton-primary"]::before {
     opacity: 1 !important;
 }
 
-/* --- Step 4: Shimmer — SAME in enabled + disabled --- */
+/* Shimmer sweep. Same in enabled and disabled states. */
 button[kind="primary"]::after,
 button[data-testid="baseButton-primary"]::after,
 button[data-testid="stBaseButton-primary"]::after {
@@ -308,7 +317,8 @@ button[data-testid="stBaseButton-primary"] > * {
     z-index: 2;
 }
 
-/* --- Step 5: Hover/active — same signature as .ss-dl-link --- */
+/* Hover/active use translateY, and lock height so the browser's default
+   button reflow never applies between states. */
 div[data-testid="stButton"] > button[kind="primary"]:not(:disabled):hover,
 div[data-testid="stButton"] > button[data-testid="baseButton-primary"]:not(:disabled):hover,
 div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:not(:disabled):hover,
@@ -353,7 +363,8 @@ button[data-testid="stBaseButton-primary"]:not(:disabled):active {
         inset 0 2px 0 rgba(255, 255, 255, 0.35) !important;
 }
 
-/* --- Step 6: Sparkles around the wrapper — decoration only --- */
+/* Decorative sparkles orbiting the wrapper. They sit on the wrapper,
+   not the button, so toggling `disabled` never affects them. */
 .stButton:has(button[kind="primary"])::before,
 .stButton:has(button[kind="primary"])::after {
     content: "";
@@ -378,9 +389,13 @@ button[data-testid="stBaseButton-primary"]:not(:disabled):active {
     animation-delay: 1.5s;
 }
 
-/* =================================================================
-   DOWNLOAD LINKS — sky blue (voice) & coral (story)
-   ================================================================= */
+/* -------------------------------------------------------------------------
+   Download links.
+
+   Implemented as raw <a download> rather than st.download_button so a
+   click does not trigger a Streamlit rerun and interrupt audio playback.
+   ------------------------------------------------------------------------- */
+
 .ss-dl-cell {
     display: flex !important;
     justify-content: center !important;
@@ -483,9 +498,6 @@ button[data-testid="stBaseButton-primary"]:not(:disabled):active {
     opacity: 0.85 !important;
 }
 
-/* =================================================================
-   STORY TEXT
-   ================================================================= */
 .story-text {
     font-family: 'Baloo 2', 'Comic Sans MS', system-ui, sans-serif;
     font-size: 1.25rem;
@@ -499,9 +511,6 @@ button[data-testid="stBaseButton-primary"]:not(:disabled):active {
     animation: fade-in 0.45s ease;
 }
 
-/* =================================================================
-   WORD COUNT CHIP
-   ================================================================= */
 .word-count {
     display: inline-flex;
     align-items: center;
@@ -524,9 +533,6 @@ button[data-testid="stBaseButton-primary"]:not(:disabled):active {
 .word-count .wc-num   { color: var(--coral-deep); font-weight: 900; }
 .word-count .wc-sep   { color: var(--ink-soft); font-weight: 700; opacity: 0.75; }
 
-/* =================================================================
-   AUDIO PLAYER
-   ================================================================= */
 .stAudio {
     border: 5px solid var(--sky);
     border-radius: 22px;
@@ -537,9 +543,9 @@ button[data-testid="stBaseButton-primary"]:not(:disabled):active {
 }
 .stAudio audio { width: 100%; height: 44px; border-radius: 14px; }
 
-/* =================================================================
-   EMPTY STATE — Ollie + guidance text
-   ================================================================= */
+/* Ollie the Story Owl — empty state. The eyes, pupils, and wings are
+   separate absolutely-positioned children so animations.css can target
+   each independently. */
 .page-empty {
     display: flex;
     flex-direction: column;
@@ -695,9 +701,8 @@ button[data-testid="stBaseButton-primary"]:not(:disabled):active {
     margin: 0 auto;
 }
 
-/* =================================================================
-   PROGRESS — inline 3D turning-book loader
-   ================================================================= */
+/* Turning-book loader. `.base` is the static book; `.page` is the
+   single page that rotates around the spine (see animations.css). */
 .progress-inline {
     display: flex;
     flex-direction: column;
@@ -841,21 +846,16 @@ button[data-testid="stBaseButton-primary"]:not(:disabled):active {
     color: var(--ink);
 }
 
-/* =================================================================
-   GENERATING-PHASE LOCKOUT
-   -----------------------------------------------------------------
-   When `phase == "working"` the right column paints the
-   `.progress-inline` turning-book loader. We use that as a global
-   "we're busy" signal: while it's on screen, the user MUST NOT be
-   able to:
+/* -------------------------------------------------------------------------
+   Generating-phase lockout.
 
-     • upload a NEW picture       (Browse files + drag-and-drop)
-     • REMOVE the current picture (the X button next to the filename)
-     • click "Make My Story!"     (would re-fire the pipeline)
+   The app deliberately does NOT use Streamlit's `disabled=True` on the
+   uploader or the magic button: that would swap the DOM node and cause
+   a visible reflow. Instead, the presence of `.progress-inline` on the
+   page is used as a "busy" signal, and the following rules make the
+   uploader and the primary button non-interactive by CSS only.
+   ------------------------------------------------------------------------- */
 
-   CSS-only lockout keeps the DOM identical → zero jitter on the
-   magic button (Streamlit's disabled attribute swap would move it).
-   ================================================================= */
 body:has(.progress-inline) [data-testid="stFileUploader"],
 body:has(.progress-inline) [data-testid="stFileUploader"] * {
     pointer-events: none !important;

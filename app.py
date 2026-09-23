@@ -1,5 +1,5 @@
 # =============================================================================
-# 📖✨ StorySpark — A Storytelling Application for Kids (ages 3–10) ✨📖
+# StorySpark — A Storytelling Application for Kids (ages 3–10)
 # =============================================================================
 #
 #  Course : ISOM5240 — Deep Learning Business Applications with Python
@@ -9,19 +9,29 @@
 #  Pipeline
 #  --------
 #    [Image upload]
-#        │  1. img2text()  →  Hugging Face pipeline("image-to-text")
+#        │  1. img2text()  →  pipeline("image-to-text")
 #        │                   (Salesforce/blip-image-captioning-base)
 #        ▼
-#    2. text2story()  →  Hugging Face pipeline("text-generation")
+#    2. text2story()  →  pipeline("text-generation")
 #                        (roneneldan/TinyStories-33M, fallback: distilgpt2)
 #        │
 #        ▼
 #    3. text2audio()  →  gTTS (Google Text-to-Speech)
 #        │
 #        ▼
-#    [Storybook spread with audio player]   🎧
+#    [Storybook spread with audio player]
 #
-#  All styling lives in ./style.css.
+#  Product spec
+#  ------------
+#  • Stories must be 50–100 words. The generator trims to the upper
+#    bound; _validate_word_count() warns if a model output slips out.
+#  • Every word the user reads must come from the LLM. No hard-coded
+#    sentences are ever appended.
+#  • The primary "Make My Story!" button must not reflow when its
+#    enabled/disabled state toggles. See NOTES.md for the CSS-only
+#    lockout rationale.
+#
+#  All styling lives in ./styles/.
 # =============================================================================
 
 from __future__ import annotations
@@ -47,16 +57,14 @@ from transformers import (
 )
 from gtts import gTTS
 
-# `gTTSError` lives in different modules across gTTS releases; import it
-# defensively so a future version bump doesn't crash the whole app.
+# gTTSError moved between gTTS modules across releases; import defensively.
 try:
     from gtts import gTTSError                     # type: ignore[attr-defined]
 except ImportError:                                # pragma: no cover
     from gtts.tts import gTTSError                 # type: ignore[attr-defined]
 
-# Exceptions that indicate the user's network / DNS is unavailable. We
-# treat them as a single "you're offline" bucket in the UI so the
-# message stays kid-friendly.
+# Exceptions that indicate the user's network is unavailable. Grouped
+# into a single "you're offline" bucket in the UI.
 _NETWORK_ERRORS: tuple[type[BaseException], ...] = (
     urllib.error.URLError,
     ConnectionError,
@@ -82,18 +90,13 @@ def load_css(
     *file_names: str,
     base_dir: str | Path = "styles",
 ) -> None:
-    """Inject the project's kid-friendly stylesheets in load order.
-
-    Resolves every ``file_name`` relative to ``base_dir`` (default
-    ``"styles"``) inside the directory that contains ``app.py``. Using
-    :mod:`pathlib` keeps the resolution reliable on Streamlit Cloud,
-    where the working directory may differ from the app's source
-    directory.
+    """Inject the project's stylesheets in load order.
 
     Later files override earlier ones on selector ties, so the chain
-    MUST be::
+    MUST be: style.css → components.css → animations.css → responsive.css.
 
-        style.css → components.css → animations.css → responsive.css
+    Paths are resolved relative to this file's directory so the app
+    works on Streamlit Cloud, where cwd may differ from source dir.
     """
     styles_root = Path(__file__).parent / base_dir
     for file_name in file_names:
@@ -116,7 +119,7 @@ load_css(
 
 
 def _html(content: str) -> None:
-    """Render raw HTML via Streamlit (shorthand for st.markdown + unsafe)."""
+    """Render raw HTML via Streamlit."""
     st.markdown(content, unsafe_allow_html=True)
 
 
@@ -137,8 +140,6 @@ CAPTION_MODEL = "Salesforce/blip-image-captioning-base"
 KID_STORY_MODEL = "roneneldan/TinyStories-33M"
 FALLBACK_STORY_MODEL = "distilgpt2"
 
-# Story-gen prompts per model. TinyStories only needs a seed sentence;
-# distilgpt2 needs an explicit instruction to write a kid's bedtime story.
 _STORY_PROMPTS: dict[str, str] = {
     KID_STORY_MODEL: "Once upon a time there was a {subject}. ",
     FALLBACK_STORY_MODEL: (
@@ -149,33 +150,23 @@ _STORY_PROMPTS: dict[str, str] = {
 }
 _FALLBACK_PROMPT: str = _STORY_PROMPTS[FALLBACK_STORY_MODEL]
 
-# Maps the pipeline phase → which quest-path step should be highlighted.
-#   idle    → step 1 (pick a picture)
-#   working → step 2 (make my story)
-#   done    → step 3 (listen & save)
 PHASE_TO_ACTIVE_STEP: dict[str, int] = {"idle": 1, "working": 2, "done": 3}
 
-# Default values for every key we put in st.session_state.
 DEFAULT_SESSION_STATE: dict[str, Any] = {
     "story": "",
     "audio_bytes": b"",
     "caption": "",
     "celebrated": False,
-    "phase": "idle",          # one of: idle | working | done
+    "phase": "idle",          # idle | working | done
     "progress_step": 0,
 }
 
-# Assignment requirement: stories must be 50–100 words. The generator
-# trims to ``high`` so the LLM-generated story lands inside the
-# assignment's word-count window; ``_validate_word_count`` warns the
-# user if a model output ever slips outside that window. No hard-coded
-# sentences are ever appended — every word the user reads comes from
-# the text-generation model.
 STORY_WORD_COUNT_LOW: int = 50
 STORY_WORD_COUNT_HIGH: int = 100
+# Alias kept separate so a future change to the trim target does not
+# silently change the validation window (or vice versa).
 STORY_WORD_COUNT_TRIM_HIGH: int = STORY_WORD_COUNT_HIGH
 
-# Steps shown by the inline turning-book loader. Each tuple is
 # (emoji, fractional progress, status text). Index matches
 # st.session_state.progress_step (0..3).
 LOADER_STEPS: list[tuple[str, float, str]] = [
@@ -192,17 +183,16 @@ LOADER_STEPS: list[tuple[str, float, str]] = [
 
 @st.cache_resource(show_spinner=False)
 def _get_caption_pipeline() -> Any:
-    """Lazy-load the BLIP image-to-text pipeline (cached across sessions).
+    """Load the BLIP image-to-text pipeline (cached across sessions).
 
     Tries the high-level ``pipeline()`` first. On failure (usually a
-    missing torchvision / sentencepiece in the host environment),
-    falls back to loading the processor + model directly and wrapping
-    them in a tiny callable that mimics the pipeline output shape.
+    missing torchvision / sentencepiece in the host environment), falls
+    back to loading the processor and model directly and wrapping them
+    in a small callable that mimics the pipeline output shape.
 
-    Note: ``transformers.pipeline`` has ~30 task-specific overloads
-    and the ``"image-to-text"`` task is not fully covered by the type
-    stubs. The ``# type: ignore[reportArgumentType]`` comment on the
-    ``task=`` line is the standard, accepted way to silence Pylance here.
+    ``transformers.pipeline`` has ~30 task-specific overloads; the
+    ``"image-to-text"`` task is not fully covered by the type stubs, so
+    the ``task=`` argument carries an explicit type-ignore.
     """
     try:
         return pipeline(
@@ -229,13 +219,12 @@ def _get_caption_pipeline() -> Any:
         ) from exc
 
     class _BlipCaptioner:
-        """Minimal drop-in for ``pipeline('image-to-text')``.
+        """Drop-in for ``pipeline('image-to-text')``.
 
         Explicit ``__init__`` binding keeps Pylance happy: passing the
         processor and model as constructor arguments means they're
-        typed as ``Any`` (rather than unresolved closure variables),
-        so ``self._processor(images=..., return_tensors=...)``
-        type-checks cleanly.
+        typed as ``Any`` rather than unresolved closure variables, so
+        the ``__call__`` body type-checks cleanly.
         """
 
         def __init__(self, processor: Any, model: Any) -> None:
@@ -263,11 +252,8 @@ def _get_caption_pipeline() -> Any:
 def _get_story_pipeline() -> tuple[Any, str]:
     """Load TinyStories (preferred) with distilgpt2 as a fallback.
 
-    Returns
-    -------
-    tuple[Any, str]
-        ``(text_generation_pipeline, model_id)`` of whichever model
-        loaded first. Raises ``RuntimeError`` if none succeed.
+    Returns ``(text_generation_pipeline, model_id)`` for whichever
+    model loads first. Raises ``RuntimeError`` if none succeed.
     """
     for model_id in (KID_STORY_MODEL, FALLBACK_STORY_MODEL):
         try:
@@ -290,18 +276,11 @@ def _get_story_pipeline() -> tuple[Any, str]:
 # ---------------------------------------------------------------------------
 
 def img2text(url_or_image: str | Image.Image) -> str:
-    """Image → short caption using the BLIP image-to-text pipeline.
+    """Caption an image with the BLIP image-to-text pipeline.
 
-    Parameters
-    ----------
-    url_or_image : str | PIL.Image.Image
-        Either a PIL Image (typical case from the Streamlit uploader)
-        or a URL string pointing at a remote image.
-
-    Returns
-    -------
-    str
-        A capitalised, stripped caption. Empty string on decoding failure.
+    Accepts either a PIL Image (the usual case from the Streamlit
+    uploader) or a URL string pointing at a remote image. Returns a
+    capitalised, stripped caption, or an empty string on decode failure.
     """
     captioner = _get_caption_pipeline()
 
@@ -321,11 +300,12 @@ def img2text(url_or_image: str | Image.Image) -> str:
 
 
 def text2story(caption: str) -> str:
-    """Caption → kid-friendly bedtime story (50–100 words).
+    """Generate a kid-friendly bedtime story (50–100 words) from a caption.
 
-    Emojis and stray quotes are stripped, the ending is repaired so the
-    story finishes on a complete sentence, and the result is trimmed to
-    the assignment's 50–100 word target.
+    Emojis and stray quotes are stripped, the ending is repaired to the
+    last complete sentence, and the result is trimmed to the product
+    spec's word-count window. Every word comes from the model — no
+    hard-coded sentences are appended.
     """
     story_gen, model_id = _get_story_pipeline()
     prompt = _STORY_PROMPTS.get(model_id, _FALLBACK_PROMPT).format(
@@ -352,33 +332,33 @@ def text2story(caption: str) -> str:
         generated = generated[len(prompt):]
 
     generated = re.sub(r"\s+", " ", generated).strip()
-    generated = _strip_emojis(generated)              # strip early
+    # Strip emojis BEFORE sentence repair: the emoji regex can remove
+    # characters that would otherwise confuse the trailing-punctuation
+    # scan. The final strip (below) catches anything the model emitted
+    # after repair re-introduced.
+    generated = _strip_emojis(generated)
     generated = _repair_story_end(generated)
-    # Trim to the assignment's word-count window. Whatever the LLM
-    # emitted IS the story — we never inject hard-coded sentences
-    # (e.g. "happily ever after") on top of the model's output.
     generated = _truncate_to_word_count(
         generated,
         low=STORY_WORD_COUNT_LOW,
         high=STORY_WORD_COUNT_TRIM_HIGH,
     )
+    # distilgpt2 occasionally emits age-inappropriate words. Log for
+    # review but ship the model output unchanged: the product spec
+    # requires every word to come from the LLM.
     if not _is_safe_for_kids(generated):
-        # distilgpt2 occasionally emits age-inappropriate words.
-        # We log it for review but ship the LLM-generated story as-is
-        # (no hard-coded substitute) per the assignment's "story must
-        # come from the LLM" requirement.
         logger.warning(
             "Story output failed the kid-safety check; shipping the "
-            "model output anyway per user policy."
+            "model output anyway per product spec."
         )
-    return _strip_emojis(generated)                   # strip final
+    return _strip_emojis(generated)
 
 
 def text2audio(story_text: str) -> bytes:
-    """Story text → MP3 audio bytes via Google Text-to-Speech.
+    """Convert a story to MP3 bytes via Google Text-to-Speech.
 
-    Emojis and quotes are stripped first so gTTS never tries to
-    pronounce them. Returns empty bytes if the input is empty.
+    Emojis and quotes are stripped first so gTTS does not attempt to
+    pronounce them. Returns empty bytes for empty input.
     """
     if not story_text:
         return b""
@@ -400,9 +380,10 @@ def text2audio(story_text: str) -> bytes:
 _LEADING_ARTICLES = {"a", "an", "the"}
 
 
-# Word blocklist for the kid-safety pass. TinyStories is trained on
-# child-safe text and never trips these; distilgpt2 occasionally does.
-# We check the GENERATED story (after all cleanup), not the caption.
+# Words that make a story unsuitable for ages 3–10. TinyStories is
+# trained on child-safe text and rarely trips these; distilgpt2
+# occasionally does. Checked against the GENERATED story (post-cleanup),
+# not the caption.
 _KID_BLOCKLIST: set[str] = {
     # violence / harm
     "kill", "killed", "kills", "killing",
@@ -425,7 +406,7 @@ _KID_BLOCKLIST: set[str] = {
     "vape", "vaping",
     # mild profanity
     "damn", "damned", "crap",
-    # mature themes (avoid for ages 3-10)
+    # mature themes
     "naked", "nude", "sexy", "romance", "romantic",
 }
 
@@ -440,13 +421,13 @@ _EMOJI_RE = re.compile(
     flags=re.UNICODE,
 )
 
-# Double quotes (straight + curly) and backticks. Apostrophes (') are
-# NOT in this class — we want to preserve contractions like "it's".
+# Double quotes (straight + curly) and backticks. Apostrophes are NOT
+# in this class so contractions like "it's" survive.
 _QUOTE_RE = re.compile(r'["“”„«»`]')
 
 
 def _strip_emojis(text: str) -> str:
-    """Strip emojis/quotes that gTTS would pronounce awkwardly; tidy spacing."""
+    """Remove emojis and quotes that gTTS would mispronounce; tidy spacing."""
     if not text:
         return text
     cleaned = _EMOJI_RE.sub("", text)
@@ -458,7 +439,7 @@ def _strip_emojis(text: str) -> str:
 
 
 def _extract_subject(caption: str) -> str:
-    """Strip only a leading article, keep the caption's natural grammar."""
+    """Strip only a leading article; keep the caption's natural grammar."""
     words = re.findall(r"[A-Za-z']+", caption)
     if words and words[0].lower() in _LEADING_ARTICLES:
         words = words[1:]
@@ -466,12 +447,11 @@ def _extract_subject(caption: str) -> str:
 
 
 def _is_safe_for_kids(text: str) -> bool:
-    """Return False if ``text`` contains any word in the kid blocklist.
+    """True unless ``text`` contains any word in the kid blocklist.
 
     Used to log a warning when the text-generation pipeline emits an
     age-inappropriate word (most likely from the distilgpt2 fallback).
-    The LLM-generated story is still shipped as-is per the
-    assignment's "story must come from the LLM" requirement.
+    The story is still shipped per the product spec.
     """
     if not text:
         return True
@@ -480,11 +460,11 @@ def _is_safe_for_kids(text: str) -> bool:
 
 
 def _truncate_to_word_count(text: str, *, low: int, high: int) -> str:
-    """Trim to ≤ high words, always ending on a COMPLETE sentence.
+    """Trim to ≤ ``high`` words, always ending on a complete sentence.
 
-    If the trimmed story falls under ``low`` words, returns the short
-    story unchanged; ``_validate_word_count`` surfaces a friendly
-    warning so the user can retry for a longer one.
+    Returns the story unchanged if it falls under ``low`` words;
+    ``_validate_word_count`` then surfaces a friendly warning so the
+    user can retry for a longer story.
     """
     if not text:
         return text
@@ -506,7 +486,7 @@ def _truncate_to_word_count(text: str, *, low: int, high: int) -> str:
     return " ".join(kept).strip()
 
 
-# Trailing filler words to strip when a sentence is cut mid-phrase.
+# Filler words to strip when a sentence is cut mid-phrase.
 _TRAILING_FILLER = re.compile(
     r"\b(a|an|the|and|but|or|so|because|with|for|to|of|in|on|at|"
     r"was|were|is|are|be|been|being)\s*$",
@@ -517,10 +497,10 @@ _DANGLING_LETTER = re.compile(r"\s+[A-Z]\.\s*$")
 
 def _repair_story_end(text: str) -> str:
     """Fix ragged endings: dangling articles, trailing single letters,
-    missing punctuation. Trims back to the last COMPLETE sentence.
+    missing punctuation. Trims back to the last complete sentence.
 
-    Only repairs the ending; the assignment's 50–100 word window is
-    enforced by ``_truncate_to_word_count``.
+    Only touches the ending; the word-count window is enforced later
+    by ``_truncate_to_word_count``.
     """
     if not text:
         return text
@@ -532,8 +512,7 @@ def _repair_story_end(text: str) -> str:
         if last_punct > 0:
             out = out[: last_punct + 1].rstrip()
 
-    # Loop so multi-word trailing fillers ("in the", "and was") strip
-    # in one pass.
+    # Loop so multi-word fillers ("in the", "and was") strip in one pass.
     while _TRAILING_FILLER.search(out):
         out = _TRAILING_FILLER.sub("", out).rstrip()
 
@@ -544,17 +523,17 @@ def _repair_story_end(text: str) -> str:
 # 3b. Session-state helpers
 # ---------------------------------------------------------------------------
 
-# Sentinel marker used by _apply_session_state to distinguish "init if
-# missing" from "overwrite". Cannot collide with any real default value
-# because dict[str, Any] defaults are JSON-compatible scalars.
+# Sentinel used by _apply_session_state to distinguish "init if missing"
+# from "overwrite". Cannot collide with any real default value because
+# dict[str, Any] defaults are JSON-compatible scalars.
 _SETDEFAULTS: Any = object()
 
 
 def _apply_session_state(mode: Any) -> None:
-    """Bulk-assign every ``DEFAULT_SESSION_STATE`` value to ``st.session_state``.
+    """Bulk-assign every ``DEFAULT_SESSION_STATE`` value to session_state.
 
-    Pass ``_SETDEFAULTS`` to call ``setdefault`` (init-only), or ``None``
-    to overwrite every key back to its default.
+    Pass ``_SETDEFAULTS`` for setdefault semantics (init-only), or
+    ``None`` to overwrite every key back to its default.
     """
     for key, default in DEFAULT_SESSION_STATE.items():
         if mode is _SETDEFAULTS:
@@ -577,10 +556,10 @@ def _reset_session_state() -> None:
 # 3c. Pipeline error helpers — kid-friendly surfaces for failures
 # ---------------------------------------------------------------------------
 
-# Friendly messages keyed by failure stage. Centralising them here keeps
-# the UI copy consistent and makes them easy to translate / unit-test
-# later. Each one is short, kid-appropriate, and tells the user what
-# to do next instead of exposing technical details.
+# One message per failure stage. Kept centralised so the copy stays
+# consistent and is easy to translate or unit-test later. Each is short,
+# age-appropriate, and tells the user what to do next instead of
+# exposing technical details.
 
 _ERR_NO_IMAGE: str = (
     "👆 Please upload a picture first — then tap the magic button!"
@@ -623,9 +602,9 @@ _ERR_TTS_OTHER: str = (
 
 
 def _reset_pipeline_state() -> None:
-    """Reset phase/progress/loader after a pipeline failure.
+    """Clear the loader slot and return the phase machine to idle.
 
-    Used by every stage-specific error handler so the user can retry
+    Called by every stage-specific error handler so the user can retry
     without manual state cleanup. Safe to call when no loader exists.
     """
     slot = st.session_state.get("_loader_slot")
@@ -640,29 +619,28 @@ def _reset_pipeline_state() -> None:
 
 
 def _validate_word_count(story: str) -> None:
-    """Warn (don't block) if a story lands outside the 50–100 word target.
+    """Warn (without blocking) if a story lands outside the 50–100 word target.
 
-    The generator tries hard to land in this window — see
-    ``_truncate_to_word_count`` — but if a model output ever slips
-    through, we surface a friendly warning instead of silently
-    shipping an off-spec story.
+    The generator tries to land in this window; this is the safety net
+    that surfaces an off-spec output instead of silently shipping it.
     """
     if not story:
         return
     n = len(story.split())
     if n < STORY_WORD_COUNT_LOW or n > STORY_WORD_COUNT_HIGH:
         st.warning(
-            f"📏 Your story is {n} words (the assignment target is "
+            f"📏 Your story is {n} words (the target is "
             f"{STORY_WORD_COUNT_LOW}–{STORY_WORD_COUNT_HIGH} words). "
             "Tap the magic button again for a different story!"
         )
 
 
 def _looks_offline(exc: BaseException) -> bool:
-    """True if ``exc`` (or any chained cause) looks like a network failure.
+    """True if ``exc`` or any chained cause looks like a network failure.
 
-    Lets the pipeline route a wider range of low-level errors into the
-    friendly "you're offline" bucket instead of dumping them verbatim.
+    gTTS wraps network failures in gTTSError, so the interesting cause
+    is often one or two links down the ``__cause__`` / ``__context__``
+    chain. Walks the chain (guarding against cycles) to find it.
     """
     seen: set[int] = set()
     current: BaseException | None = exc
@@ -670,8 +648,6 @@ def _looks_offline(exc: BaseException) -> bool:
         seen.add(id(current))
         if isinstance(current, _NETWORK_ERRORS):
             return True
-        # gTTS wraps network failures in gTTSError; the chained cause
-        # is the real URLError. Walk the chain to find it.
         next_exc = getattr(current, "__cause__", None) or getattr(
             current, "__context__", None
         )
@@ -683,7 +659,6 @@ def _looks_offline(exc: BaseException) -> bool:
 # 4. UI — small HTML-fragment helpers
 # ---------------------------------------------------------------------------
 
-# Quest-path steps used by _render_quest_path(). Tuples are
 # (icon, title, sub). The '&' in "Listen & save" is pre-escaped for HTML.
 _QUEST_STEPS: list[tuple[str, str, str]] = [
     ("🎨", "Pick a picture",    "PNG · JPG · WEBP · up to 25 MB"),
@@ -758,8 +733,8 @@ def _render_progress_loader(step: int) -> None:
     )
 
 
-# (label, filename, MIME prefix) for the two download links. The icon
-# SVG is hard-coded in style.css, so it's not part of this table.
+# (label, filename, MIME prefix). The icon SVG is hard-coded in
+# components.css and is not part of this table.
 _DOWNLOAD_LINKS: list[tuple[str, str, str]] = [
     ("Save the voice", "storyspark_story.mp3", "data:audio/mp3;base64,"),
     ("Save the story", "storyspark_story.txt", "data:text/plain;charset=utf-8,"),
@@ -769,8 +744,8 @@ _DOWNLOAD_LINKS: list[tuple[str, str, str]] = [
 def _render_download_buttons(audio_bytes: bytes, story: str) -> None:
     """Render two raw ``<a download>`` links (voice + story).
 
-    Raw links are used instead of ``st.download_button`` so clicking
-    them does NOT trigger a Streamlit rerun and interrupt audio playback.
+    Raw links are used instead of ``st.download_button`` so a click
+    does not trigger a Streamlit rerun and interrupt audio playback.
     """
     payloads = [
         base64.b64encode(audio_bytes).decode("ascii") if audio_bytes else "",
@@ -816,7 +791,6 @@ def _render_empty_state() -> None:
     """Render Ollie the Story Owl plus the original guidance text."""
     _html(
         '<div class="page-empty">'
-        # Ollie the Story Owl
         '<div class="story-guide" aria-hidden="true">'
         '<div class="guide-body">'
         '<div class="guide-eyes">'
@@ -828,7 +802,6 @@ def _render_empty_state() -> None:
         '<div class="guide-wing left"></div>'
         '<div class="guide-wing right"></div>'
         '</div>'
-        # Speech bubble
         '<div class="guide-bubble">'
         '<span class="guide-greet">Hi, story-maker!</span>'
         '<span class="guide-ask">'
@@ -837,7 +810,6 @@ def _render_empty_state() -> None:
         'tell you a tale just for you…'
         '</span>'
         '</div>'
-        # Original guidance text
         '<div class="empty-original">'
         '<div class="empty-text">Your story will appear here…</div>'
         '<div class="empty-hint">'
@@ -855,12 +827,9 @@ def _render_empty_state() -> None:
 def render_upload_page() -> tuple[Any, bool]:
     """Render the LEFT (upload) page.
 
-    Returns
-    -------
-    uploaded : Any
-        The currently uploaded file (``UploadedFile``), or ``None``.
-    make_story : bool
-        True only on the run where the user just clicked 'Make My Story!'.
+    Returns ``(uploaded, make_story)`` where ``uploaded`` is the current
+    ``UploadedFile`` or ``None``, and ``make_story`` is True only on the
+    run where the user just clicked 'Make My Story!'.
     """
     _page_heading("🎨", "Put your picture here!")
 
@@ -873,46 +842,37 @@ def render_upload_page() -> tuple[Any, bool]:
     )
 
     if uploaded is None:
-        # Empty state: show the quest path. Stale-state reset in main().
         active_step = PHASE_TO_ACTIVE_STEP.get(st.session_state.phase, 1)
         _render_quest_path(active_step)
         return uploaded, False
 
-    # Rewind the buffer so a second Image.open() in the pipeline sees
-    # the same bytes.
+    # Rewind so a second Image.open() in the pipeline sees the same bytes.
     uploaded.seek(0)
 
-    # Validate the upload RIGHT HERE so corrupt / truncated files fail
-    # with a friendly message instead of blowing up deep inside the
-    # pipeline. PIL's ``Image.open()`` is lazy — it only parses the
-    # header — so a file with a valid header but a truncated body
-    # (e.g. an interrupted download) would otherwise look fine here
-    # and only crash when the BLIP pipeline tries to read pixels.
-    # Calling ``.load()`` forces a full decode NOW, catching both
-    # "not an image at all" (``UnidentifiedImageError``) and "valid
-    # header, body cut off" (``OSError`` on decode).
+    # Validate the upload here so corrupt / truncated files fail with a
+    # friendly message instead of crashing deep inside the pipeline.
+    # PIL's Image.open() is lazy (header only), so a file with a valid
+    # header but a truncated body would otherwise look fine here and
+    # blow up only when BLIP tries to read pixels. Image.load() forces
+    # a full decode now, catching both UnidentifiedImageError and
+    # "valid header, cut-off body" OSError.
     try:
         preview_image = Image.open(uploaded)
         preview_image.load()
     except (Image.UnidentifiedImageError, OSError) as exc:
         logger.warning("User uploaded an unreadable image: %s", exc)
         st.error(_ERR_BAD_IMAGE)
-        # Skip the preview + button so the user can't trigger the
-        # pipeline on a known-bad file.
+        # Skip preview + button so the user can't trigger the pipeline
+        # on a known-bad file.
         return uploaded, False
 
     st.image(preview_image, use_container_width=True)
 
-    # The button is automatically locked out during the working phase
-    # by CSS rules keyed on the `.progress-inline` loader
-    # (`body:has(.progress-inline) …` in components.css). We
-    # intentionally do NOT use Streamlit's `disabled=True` because
-    # disabling a button via the HTML `disabled` attribute swaps
-    # Streamlit's internal DOM node (different testid, no tooltip
-    # wrapper), producing a visible 1-2px position shift on the magic
-    # button. CSS-only lockout keeps the DOM identical → zero jitter.
-    # The pipeline guard below still serves as defense-in-depth for
-    # any click that slips through.
+    # The button is locked out during the working phase by CSS keyed on
+    # the `.progress-inline` loader (see components.css). We deliberately
+    # do NOT use Streamlit's `disabled=True`: that swaps the internal
+    # DOM node and shifts the button 1-2px. The pipeline guard below
+    # remains as defense-in-depth for any click that slips through.
     _left, _center, _right = st.columns([1, 4, 1])
     with _center:
         make_story = st.button(
@@ -921,7 +881,6 @@ def render_upload_page() -> tuple[Any, bool]:
             key="make_story_btn",
         )
 
-    # Happy-path return: the file is valid and the button is on screen.
     return uploaded, make_story
 
 
@@ -931,16 +890,15 @@ def render_story_page() -> None:
     phase = st.session_state.phase
 
     if phase == "working":
-        # Create the empty slot ONCE here, then the pipeline paints into it
-        # in-place. Storing it in session_state avoids creating a second slot
-        # (which would show two loaders at once).
+        # Create the empty slot ONCE, then the pipeline paints into it
+        # in place. Storing it in session_state prevents a second slot
+        # from being created (which would show two loaders at once).
         if "_loader_slot" not in st.session_state:
             st.session_state._loader_slot = st.empty()
         with st.session_state._loader_slot.container():
             _render_progress_loader(st.session_state.progress_step)
     elif story:
-        # Clear any leftover loader slot from the previous phase so it
-        # doesn't linger under the finished story.
+        # Clear any leftover loader slot from the previous phase.
         if "_loader_slot" in st.session_state:
             del st.session_state._loader_slot
         _render_story_output(story, st.session_state.audio_bytes)
@@ -953,10 +911,7 @@ def render_story_page() -> None:
 # ---------------------------------------------------------------------------
 
 def _clear_stale_state_if_needed(uploaded: Any) -> None:
-    """If the user removed their upload but a story still exists, reset state.
-
-    Kept outside render functions so render stays side-effect free.
-    """
+    """Reset session state if the user removed their upload but a story exists."""
     if uploaded is None and (st.session_state.story or st.session_state.audio_bytes):
         _reset_session_state()
         st.rerun()
@@ -965,19 +920,19 @@ def _clear_stale_state_if_needed(uploaded: Any) -> None:
 def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
     """Drive the image → story → audio state machine.
 
-    Runs in two phases via Streamlit reruns:
+    Runs in two Streamlit reruns:
 
-    * Phase 1 — user clicks 'Make My Story!': flip phase to 'working'
-      and rerun, so the loader UI paints immediately.
-    * Phase 2 — phase is 'working': execute the pipeline, painting the
-      loader in-place between stages, then flip to 'done' (or back to
-      'idle' on failure).
+    Phase 1 — user clicks 'Make My Story!': flip phase to 'working' and
+    rerun so the loader paints immediately.
 
-    Each pipeline stage has its own try/except so the user sees a
-    kid-friendly message that names *what* failed and *what to do*,
-    instead of a single generic error that exposes raw tracebacks.
-    Network failures get a dedicated branch; TTS failures preserve
-    the already-generated story so the user can still read it.
+    Phase 2 — phase is 'working': execute each pipeline stage, painting
+    the loader in place between stages, then flip to 'done' (or back to
+    'idle' on failure).
+
+    Each stage has its own try/except so the user sees a message that
+    names *what* failed and *what to do*, rather than one generic error.
+    Network failures get a dedicated branch; TTS failures preserve the
+    already-generated story so the user can still read it.
     """
     # ---- Phase 1: user just clicked the magic button ----
     if (
@@ -989,10 +944,8 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         st.session_state.progress_step = 0
         st.rerun()
 
-    # Defensive guard: if a click ever arrives without a file (shouldn't
-    # happen because the button is hidden in the empty state, but a
-    # stale session_state could let it slip through), tell the user
-    # what's missing instead of silently returning.
+    # Defensive guard: a click can only reach here without a file if
+    # session_state is stale. Tell the user instead of silently returning.
     if make_story and uploaded is None and st.session_state.phase == "idle":
         st.warning(_ERR_NO_IMAGE)
         return
@@ -1004,23 +957,20 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
     uploaded.seek(0)
     try:
         working_image = Image.open(uploaded)
-        working_image.load()             # force full decode now
+        working_image.load()
     except (Image.UnidentifiedImageError, OSError) as exc:
-        # Defensive: render_upload_page already validated this file,
-        # but a stale session_state could let an invalid upload slip
-        # through. Surface the same friendly message either way.
+        # render_upload_page already validated this; a stale session
+        # could still let an invalid upload slip through. Same message.
         logger.warning("Pipeline image re-validation failed: %s", exc)
         _reset_pipeline_state()
         st.error(_ERR_BAD_IMAGE)
         return
 
-    # Initialise BEFORE the per-stage try blocks so every binding
-    # exists even on early-return.
+    # Bind before the try blocks so every name exists on early return.
     caption, story, audio_bytes = "", "", b""
 
-    # Reuse the loader slot created by render_story_page so we don't get
-    # two .progress-inline blocks on screen at once. If it's missing
-    # (e.g. pipeline triggered outside the right column), create one.
+    # Reuse the loader slot from render_story_page so we don't render
+    # two .progress-inline blocks at once. Create one if it's missing.
     loader_slot = st.session_state.get("_loader_slot") or st.empty()
     st.session_state._loader_slot = loader_slot
 
@@ -1028,14 +978,11 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         with loader_slot.container():
             _render_progress_loader(step_index)
 
-    # ----------------------------------------------------------------
-    # Stage 1: image captioning
-    # ----------------------------------------------------------------
+    # ----- Stage 1: image captioning -----
     try:
         _paint(0)
         caption = img2text(working_image)
     except _NETWORK_ERRORS as exc:
-        # Image was fetched (or supplied) but the model call needs HF.
         logger.warning("Network error during captioning: %s", exc)
         _reset_pipeline_state()
         st.error(_ERR_OFFLINE)
@@ -1052,9 +999,7 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         st.warning(_ERR_EMPTY_CAPTION)
         return
 
-    # ----------------------------------------------------------------
-    # Stage 2: story generation
-    # ----------------------------------------------------------------
+    # ----- Stage 2: story generation -----
     try:
         _paint(1)
         story = text2story(caption)
@@ -1064,9 +1009,9 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         st.error(_ERR_OFFLINE)
         return
     except RuntimeError as exc:
-        # _get_story_pipeline raises RuntimeError when BOTH models
-        # fail to load — surface it as "models are napping" instead of
-        # leaking the underlying HF / OS error to the user.
+        # _get_story_pipeline raises RuntimeError when both models fail
+        # to load. Surface as "models are napping" instead of leaking
+        # the underlying HF / OS error.
         logger.error("Story model unavailable: %s", exc)
         _reset_pipeline_state()
         st.error(_ERR_MODEL_LOAD)
@@ -1084,13 +1029,9 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         return
 
     _paint(2)
-    # Surface (but don't block on) word-count drift. Generator tries
-    # hard to land in [50, 100]; this is the safety net.
     _validate_word_count(story)
 
-    # ----------------------------------------------------------------
-    # Stage 3: text-to-speech
-    # ----------------------------------------------------------------
+    # ----- Stage 3: text-to-speech -----
     # TTS only needs an internet call (gTTS → Google). If it fails we
     # still save the story so the user can read it; only audio is lost.
     try:
@@ -1108,9 +1049,7 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         st.rerun()
         return
     except Exception as exc:                            # noqa: BLE001
-        # gTTSError (and any other TTS-layer failure) goes here. We
-        # also check _looks_offline() so a wrapped URLError inside a
-        # gTTSError gets the friendlier offline message.
+        # _looks_offline() catches a URLError wrapped inside gTTSError.
         if _looks_offline(exc):
             logger.warning("TTS failed with underlying network error: %s", exc)
             user_msg = _ERR_TTS_NETWORK
@@ -1128,9 +1067,7 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         st.rerun()
         return
 
-    # ----------------------------------------------------------------
-    # Stage 4: final paint + commit
-    # ----------------------------------------------------------------
+    # ----- Stage 4: final paint + commit -----
     _paint(3)
     time.sleep(0.25)                  # let the final frame paint
 
@@ -1149,7 +1086,7 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
 # ---------------------------------------------------------------------------
 
 def _render_footer() -> None:
-    """Render the fixed-position footer bar at the bottom of the page."""
+    """Render the fixed-position footer bar."""
     _html("<div class='footer-bar'>Made with 💖 for tiny story-lovers</div>")
 
 

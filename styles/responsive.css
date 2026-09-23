@@ -1,22 +1,21 @@
 /* ==========================================================================
-   📱  StorySpark — responsive.css
-   Media queries only. Loaded LAST so overrides win.
-   Covers both `column` (older Streamlit) and `stColumn` (newer).
+   StorySpark — responsive.css
+   Loaded LAST so overrides win. Covers both `column` (older Streamlit)
+   and `stColumn` (newer Streamlit) selectors.
    ========================================================================== */
 
 @media (max-width: 900px) {
-    /* Mobile: drop background-attachment: fixed — janky on iOS scroll. */
+    /* background-attachment: fixed is janky on iOS scroll. */
     .stApp { background-attachment: scroll; }
 
     .title-main { font-size: 2.2rem; }
     .title-sub  { font-size: 1rem; }
 
-    /* Reduce the top margin so contents sit a bit higher on mobile. */
     [data-testid="stHorizontalBlock"] {
         margin-top: 0.4rem !important;
     }
 
-    /* --- Columns stack full-width --- */
+    /* Stack columns full-width on narrow screens. */
     [data-testid="column"],
     [data-testid="stColumn"],
     section[data-testid="stColumn"] {
@@ -32,22 +31,21 @@
         padding: 0 !important;
     }
 
-    /* --- Typography and spacing tweaks --- */
     .page-heading { font-size: 1.25rem; }
     .story-text   { font-size: 1.1rem; }
     .float        { font-size: 2rem; opacity: 0.4; }
     .page-empty   { min-height: 40vh; }
     .progress-inline { min-height: 40vh; }
 
-    /* Cut two of the six floating emoji to reduce GPU cost on mobile. */
+    /* Drop two of the six floating emoji to save GPU on mobile. */
     .f5, .f6 { display: none; }
 
-    /* Save buttons sit closer to the audio player on mobile too. */
     .ss-dl-cell {
         margin: 0.15rem 0 0 0 !important;
     }
 
-    /* --- Primary button: static, full-width, no animation --- */
+    /* Primary button: full-width, static, no animation or transform on
+       hover/active so it never shifts under the user's finger. */
     :is(
         .stButton > button[kind="primary"],
         button[kind="primary"],
@@ -65,8 +63,6 @@
         transition: none !important;
     }
 
-    /* Match the inner-label typography to the shrunk button so the
-       label renders at the same size as the mobile button. */
     :is(
         button[kind="primary"],
         button[data-testid="baseButton-primary"],
@@ -90,7 +86,6 @@
         font-size: 1.1rem !important;
     }
 
-    /* Hover/active on mobile must not shift the button either. */
     :is(
         button[kind="primary"],
         button[data-testid="baseButton-primary"],

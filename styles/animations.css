@@ -1,13 +1,11 @@
 /* ==========================================================================
-   🎬  StorySpark — animations.css
-   The single source of truth for every @keyframes in the project.
-   No static widget rules live here — only motion.
+   StorySpark — animations.css
    Load AFTER components.css, BEFORE responsive.css.
+
+   This is the single source of truth for every @keyframes rule in the
+   project. No static widget rules live here.
    ========================================================================== */
 
-/* =================================================================
-   FLOATING BACKGROUND EMOJI
-   ================================================================= */
 .scene {
     position: fixed;
     top: 0;
@@ -42,17 +40,11 @@
     50%      { transform: translateY(-12px) rotate(3deg); }
 }
 
-/* =================================================================
-   RAINBOW TITLE — wiggle
-   ================================================================= */
 @keyframes wiggle {
     0%, 100% { transform: rotate(-1deg); }
     50%      { transform: rotate(1deg);  }
 }
 
-/* =================================================================
-   PAGE GLOW — page-pulse
-   ================================================================= */
 @keyframes page-pulse {
     0%, 100% { box-shadow:
         0 8px 24px rgba(0, 0, 0, 0.06),
@@ -62,18 +54,11 @@
         0 0 0 8px rgba(89, 200, 255, 0.10); }
 }
 
-/* =================================================================
-   GENERIC FADE-IN — used by story text, quest path, guide bubble,
-   progress loader
-   ================================================================= */
 @keyframes fade-in {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0);   }
 }
 
-/* =================================================================
-   OLLIE (story-guide) KEYFRAMES
-   ================================================================= */
 @keyframes guide-bob {
     0%, 100% { transform: translateY(0) rotate(-1deg); }
     50%      { transform: translateY(-6px) rotate(1deg); }
@@ -96,9 +81,6 @@
     50%      { transform: rotate(-12deg); }
 }
 
-/* =================================================================
-   PROGRESS — inline 3D turning-book loader
-   ================================================================= */
 @keyframes book-breathe {
     0%, 100% { transform: translateY(0)    rotate(-0.4deg); }
     50%      { transform: translateY(-4px) rotate(0.4deg);  }
@@ -141,7 +123,6 @@
     50%      { transform: translateY(-10px); }
 }
 
-/* Animated dots — cross-browser via clip-path. */
 @keyframes dots-clip {
     0%   { clip-path: inset(0 100% 0 0); }
     25%  { clip-path: inset(0 66% 0 0); }
@@ -150,14 +131,8 @@
     100% { clip-path: inset(0 100% 0 0); }
 }
 
-/* =================================================================
-   MAGIC BUTTON DECORATION KEYFRAMES
-   -----------------------------------------------------------------
-   The primary button itself is fully static (no animation, no
-   transform, no transition). Only these decorative effects run:
-   sparkles orbiting the wrapper, and a shimmer sweep on the
-   button's ::after pseudo-element.
-   ================================================================= */
+/* Decorative effects on the primary button. The button itself is
+   static; only these two run. */
 @keyframes sparkle-orbit {
     0%, 100% { transform: scale(0.6) translateY(0);    opacity: 0.4; }
     50%      { transform: scale(1.2) translateY(-8px); opacity: 1;   }
@@ -175,9 +150,6 @@
     75%      { transform: rotate(18deg); }
 }
 
-/* =================================================================
-   REDUCED MOTION
-   ================================================================= */
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

@@ -1,8 +1,10 @@
 /* ==========================================================================
-   📖  StorySpark — storybook theme for kids (ages 3–10)  🌈🦉✨
-   Page-level styles: layout, background, columns, title, headings,
-   file uploader, image preview, primary button, footer.
-   Widget styles live in components.css; @keyframes live in animations.css.
+   StorySpark — style.css
+   Load order: style.css → components.css → animations.css → responsive.css
+
+   Page-level layout and chrome only (background, columns, title, headings,
+   file uploader, image preview, primary button, footer). Widget rules live
+   in components.css; @keyframes live in animations.css.
    ========================================================================== */
 
 :root {
@@ -21,9 +23,6 @@
     --ink-soft:     #6a6478;
 }
 
-/* =================================================================
-   PAGE BACKGROUND
-   ================================================================= */
 .stApp {
     background:
         radial-gradient(ellipse 60% 40% at 8%  12%, #ffe3ee 0, transparent 60%),
@@ -37,9 +36,8 @@
     color: var(--ink);
 }
 
-/* =================================================================
-   FULL-WIDTH LAYOUT
-   ================================================================= */
+/* Streamlit's default block-container is narrower than we want and its
+   horizontal padding shifts between releases; pin it to a known box. */
 .main .block-container,
 [data-testid="stAppViewContainer"] .block-container,
 section.main > div.block-container {
@@ -55,9 +53,9 @@ section.main > div.block-container {
     margin-top: 0.1rem !important;
 }
 
-/* =================================================================
-   TWO FACING PAGES
-   ================================================================= */
+/* Two facing "pages". `overflow: visible` is deliberate: Streamlit's
+   default column clips absolutely-positioned decorations (sparkles,
+   the loader's shadow) that intentionally bleed past the column edge. */
 [data-testid="column"] {
     width: 50% !important;
     flex: 1 1 0 !important;
@@ -79,6 +77,9 @@ section.main > div.block-container {
 [data-testid="column"]:nth-of-type(2) {
     background: linear-gradient(160deg, #fffef9 60%, #e6f6ff 100%);
 }
+
+/* Nested columns (e.g. the row that centers the magic button) must
+   not inherit the "page" decoration. */
 [data-testid="column"] [data-testid="column"] {
     min-height: 0 !important;
     padding: 0 !important;
@@ -95,14 +96,13 @@ section[data-testid="stColumn"] {
     max-height: none !important;
 }
 
+/* While the working-phase loader is on screen, tint the right page blue
+   so the two facing pages read as "left idle, right busy". */
 [data-testid="column"]:nth-of-type(2):has(.progress-inline) {
     background: linear-gradient(160deg, #fffef9 60%, #dff3ff 100%);
     animation: page-pulse 2.4s ease-in-out infinite;
 }
 
-/* =================================================================
-   FLOATING BACKGROUND EMOJI
-   ================================================================= */
 .scene {
     position: fixed;
     inset: 0;
@@ -127,10 +127,6 @@ section[data-testid="stColumn"] {
 .f4 { top: 40%;    right: 2%;  animation-delay: 0.6s; font-size: 3.2rem; }
 .f5 { bottom: 8%;  left: 8%;   animation-delay: 1.8s; font-size: 2.4rem; }
 .f6 { bottom: 12%; right: 3%;  animation-delay: 2.4s; font-size: 2.8rem; }
-
-/* =================================================================
-   RAINBOW TITLE
-   ================================================================= */
 
 .title {
     text-align: center;
@@ -161,9 +157,6 @@ section[data-testid="stColumn"] {
     margin-top: 0.15rem;
 }
 
-/* =================================================================
-   PAGE HEADINGS
-   ================================================================= */
 .page-heading {
     display: flex;
     align-items: center;
@@ -179,9 +172,8 @@ section[data-testid="stColumn"] {
     filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.10));
 }
 
-/* =================================================================
-   FILE UPLOADER
-   ================================================================= */
+/* Streamlit ships a light uploader with a solid border; override every
+   layer (wrapper, dropzone, inner button) to match the storybook theme. */
 [data-testid="stFileUploader"] {
     border: 4px dashed var(--coral) !important;
     border-radius: 24px !important;
@@ -218,6 +210,10 @@ section[data-testid="stColumn"] {
     transform: translateY(-1px);
 }
 
+/* Two independent "disabled" signals are supported here:
+   - [data-disabled="true"]: set by Streamlit when `disabled=True`.
+   - .column-left-working: set by our own CSS lockout.
+   The app relies on the class-based path so the DOM node never swaps. */
 [data-testid="stFileUploader"][data-disabled="true"],
 .column-left-working [data-testid="stFileUploader"] {
     opacity: 0.5 !important;
@@ -238,9 +234,6 @@ section[data-testid="stColumn"] {
     transform: none !important;
 }
 
-/* =================================================================
-   IMAGE PREVIEW
-   ================================================================= */
 .stImage img {
     border-radius: 14px;
     border: 8px solid #fff;
@@ -253,9 +246,10 @@ section[data-testid="stColumn"] {
 }
 .stImage img:hover { transform: rotate(0deg) scale(1.01); }
 
-/* =================================================================
-   PRIMARY MAGIC BUTTON — static, hard-centered
-   ================================================================= */
+/* The primary-button rules in this file are intentionally duplicated
+   in components.css so the button renders correctly even if only one
+   of the two files loads. Keep them in sync when editing. */
+
 .stButton:has(button[kind="primary"]) {
     display: flex;
     justify-content: center;
@@ -357,6 +351,8 @@ button[kind="primary"]::before {
         0 2px 6px rgba(184, 50, 90, 0.35);
 }
 
+/* Shimmer sweep. Keep identical in enabled and disabled states so the
+   button never visually "switches modes" — only the cursor changes. */
 .stButton > button[kind="primary"]::after,
 button[kind="primary"]::after {
     content: "" !important;
@@ -411,6 +407,9 @@ button[kind="primary"]:not(:disabled):active {
     outline-offset: 5px !important;
 }
 
+/* Disabled state must be visually IDENTICAL to enabled (same gradient,
+   same wand, same shimmer) so toggling `disabled` never reflows the
+   button. Only the cursor changes. */
 .stButton > button[kind="primary"]:disabled,
 button[kind="primary"]:disabled {
     width: auto !important;
@@ -462,18 +461,12 @@ button[kind="primary"]:disabled::after {
     content: none !important;
 }
 
-/* =================================================================
-   HIDE STREAMLIT CHROME
-   ================================================================= */
 header[data-testid="stHeader"] { display: none; }
 footer,
 [data-testid="stToolbar"],
 [data-testid="stDecoration"] { visibility: hidden; }
 [data-testid="stStatusWidget"] { display: none !important; }
 
-/* =================================================================
-   FOOTER
-   ================================================================= */
 .footer-bar {
     position: fixed;
     bottom: 0.9rem;

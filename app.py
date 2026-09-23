@@ -13,7 +13,8 @@
 #        │                   (Salesforce/blip-image-captioning-base)
 #        ▼
 #    2. text2story()  →  pipeline("text-generation")
-#                        (roneneldan/TinyStories-33M, fallback: distilgpt2)
+#                        (HuggingFaceTB/SmolLM2-360M-Instruct,
+#                         fallback: roneneldan/TinyStories-33M)
 #        │
 #        ▼
 #    3. text2audio()  →  gTTS (Google Text-to-Speech)
@@ -24,7 +25,7 @@
 #  Product spec
 #  ------------
 #  • Stories must be 50–100 words. The generator trims to the upper
-#    bound; _validate_word_count() warns if a model output slips out.
+#    bound; a short-story notice is shown inline if the model lands low.
 #  • Every word the user reads must come from the LLM. No hard-coded
 #    sentences are ever appended.
 #  • The primary "Make My Story!" button must not reflow when its
@@ -145,21 +146,38 @@ def _page_heading(emoji: str, text: str) -> None:
 # ---------------------------------------------------------------------------
 
 CAPTION_MODEL = "Salesforce/blip-image-captioning-base"
-KID_STORY_MODEL = "roneneldan/TinyStories-33M"
-FALLBACK_STORY_MODEL = "distilgpt2"
+
+# Primary story model: instruction-tuned, so it follows the
+# "write a story about <caption>" instruction. TinyStories-33M is a
+# completion model — it cannot follow instructions and is only used
+# as a fallback if SmolLM2 fails to load.
+KID_STORY_MODEL = "HuggingFaceTB/SmolLM2-360M-Instruct"
+FALLBACK_STORY_MODEL = "roneneldan/TinyStories-33M"
 
 # How long to hold the "All done!" loader frame before committing the
-# story and rerunning. Small value: the loader is a UX nicety, not a
-# requirement, so we don't want to block the user for long.
+# story and rerunning.
 _FINAL_FRAME_DELAY_S: float = 0.25
 
+# Per-model prompt templates.
+#
+# The SmolLM2 prompt deliberately avoids the phrase "bedtime story",
+# because that phrase is statistically almost always followed by
+# "Once upon a time" in English text — so a small model defaults to
+# that opening on every generation. Asking for a "story about this
+# scene" with an instruction to start with a description produces
+# varied, scene-specific openings instead.
+#
+# The TinyStories prompt is a bare seed sentence: TinyStories is a
+# completion model and cannot read instructions. The pipeline strips
+# this seed from the output before display.
 _STORY_PROMPTS: dict[str, str] = {
-    KID_STORY_MODEL: "Once upon a time there was a {subject}. ",
-    FALLBACK_STORY_MODEL: (
-        "Tell a happy bedtime story for a 6 year old child about {subject}. "
-        "Use simple words, short sentences, and end with something nice. "
-        "Story:\n"
+    KID_STORY_MODEL: (
+        "Write a 60-word story for a young child about this scene: "
+        "{subject}. Use simple words and short sentences. "
+        "Start with a description of what is happening. "
+        "End with something happy."
     ),
+    FALLBACK_STORY_MODEL: "Once upon a time there was {subject}. ",
 }
 _FALLBACK_PROMPT: str = _STORY_PROMPTS[FALLBACK_STORY_MODEL]
 
@@ -177,12 +195,8 @@ DEFAULT_SESSION_STATE: dict[str, Any] = {
 
 STORY_WORD_COUNT_LOW: int = 50
 STORY_WORD_COUNT_HIGH: int = 100
-# Alias kept separate so a future change to the trim target does not
-# silently change the validation window (or vice versa).
 STORY_WORD_COUNT_TRIM_HIGH: int = STORY_WORD_COUNT_HIGH
 
-# (emoji, fractional progress, status text). Index matches
-# st.session_state.progress_step (0..3).
 LOADER_STEPS: list[tuple[str, float, str]] = [
     ("🔎", 0.15, "Looking at your picture"),
     ("📖", 0.45, "Writing your story"),
@@ -212,16 +226,22 @@ def _get_caption_pipeline() -> Any:
     missing torchvision / sentencepiece in the host environment), falls
     back to loading the processor and model directly and wrapping them
     in a small callable that mimics the pipeline output shape.
-
-    ``transformers.pipeline`` has ~30 task-specific overloads; the
-    ``"image-to-text"`` task is not fully covered by the type stubs, so
-    the ``task=`` argument carries an explicit type-ignore.
     """
     try:
         return pipeline(
             task="image-to-text",  # type: ignore[reportArgumentType]
             model=CAPTION_MODEL,
         )
+    except ImportError as exc:
+        # Usually means torchvision is missing from the environment.
+        # The manual load below requires torchvision too, so re-raise
+        # with a clear message rather than falling through to a
+        # confusing secondary failure.
+        logger.error("Missing dependency while loading BLIP: %s", exc)
+        raise RuntimeError(
+            "The image captioning model needs the 'torchvision' "
+            "package. Install it with: pip install torchvision"
+        ) from exc
     except Exception as exc:                       # noqa: BLE001
         logger.warning(
             "pipeline('image-to-text') failed (%s); "
@@ -242,13 +262,7 @@ def _get_caption_pipeline() -> Any:
         ) from exc
 
     class _BlipCaptioner:
-        """Drop-in for ``pipeline('image-to-text')``.
-
-        Explicit ``__init__`` binding keeps Pylance happy: passing the
-        processor and model as constructor arguments means they're
-        typed as ``Any`` rather than unresolved closure variables, so
-        the ``__call__`` body type-checks cleanly.
-        """
+        """Drop-in for ``pipeline('image-to-text')``."""
 
         def __init__(self, processor: Any, model: Any) -> None:
             self._processor = processor
@@ -257,11 +271,15 @@ def _get_caption_pipeline() -> Any:
         def __call__(
             self,
             image: Any,
-            max_new_tokens: int = 40,
+            max_new_tokens: int = 60,
+            generate_kwargs: dict[str, Any] | None = None,
         ) -> list[dict[str, str]]:
             inputs = self._processor(images=image, return_tensors="pt")
+            gen_kwargs = dict(generate_kwargs or {})
             output_ids = self._model.generate(
-                **inputs, max_new_tokens=max_new_tokens
+                **inputs,
+                max_new_tokens=max_new_tokens,
+                **gen_kwargs,
             )
             text = self._processor.decode(
                 output_ids[0], skip_special_tokens=True
@@ -272,12 +290,12 @@ def _get_caption_pipeline() -> Any:
 
 
 @st.cache_resource(show_spinner=False)
-def _get_story_pipeline() -> tuple[Any, str, int | None]:
-    """Load TinyStories (preferred) with distilgpt2 as a fallback.
+def _get_story_pipeline() -> tuple[Any, str, int | None, bool]:
+    """Load the story pipeline, preferring SmolLM2 over TinyStories.
 
-    Returns ``(pipeline, model_id, pad_token_id)``. ``pad_token_id`` is
-    cached here so callers don't have to re-inspect the tokenizer on
-    every generation. Raises ``RuntimeError`` if no model loads.
+    Returns ``(pipeline, model_id, pad_token_id, is_chat)``.
+    ``is_chat`` is True for instruction-tuned models that expect
+    chat-formatted input.
     """
     for model_id in (KID_STORY_MODEL, FALLBACK_STORY_MODEL):
         try:
@@ -289,7 +307,11 @@ def _get_story_pipeline() -> tuple[Any, str, int | None]:
                 tokenizer=tokenizer,
             )
             pad_id = getattr(tokenizer, "pad_token_id", None)
-            return text_gen, model_id, pad_id
+            is_chat = (
+                "instruct" in model_id.lower()
+                or "chat" in model_id.lower()
+            )
+            return text_gen, model_id, pad_id, is_chat
         except (OSError, RuntimeError, ValueError) as exc:
             logger.warning("Could not load %s: %s", model_id, exc)
             continue
@@ -303,54 +325,84 @@ def _get_story_pipeline() -> tuple[Any, str, int | None]:
 def img2text(image: Image.Image) -> str:
     """Caption an image with the BLIP image-to-text pipeline.
 
-    Returns a capitalised, stripped caption, or an empty string on
-    decode failure. Only PIL Images are accepted; the app never
-    fetches remote URLs.
+    Uses beam search with a length penalty so the caption names more
+    of the objects in the scene (slide, sandbox, swings) rather than
+    producing one flat sentence. A richer caption gives the story
+    model more to work with.
     """
     captioner = _get_caption_pipeline()
-
     rgb = image if image.mode == "RGB" else image.convert("RGB")
-    results = captioner(rgb, max_new_tokens=40)
+    results = captioner(
+        rgb,
+        max_new_tokens=60,
+        generate_kwargs={"num_beams": 5, "length_penalty": 2.0},
+    )
     text = (results[0].get("generated_text", "") if results else "").strip()
     return text[0].upper() + text[1:] if text else text
 
 
 def text2story(caption: str) -> str:
-    """Generate a kid-friendly bedtime story (50–100 words) from a caption.
+    """Generate a kid-friendly story (50–100 words) from a caption.
 
     Emojis and stray quotes are stripped, the ending is repaired to the
     last complete sentence, and the result is trimmed to the product
     spec's word-count window. Every word comes from the model — no
     hard-coded sentences are appended.
     """
-    story_gen, model_id, pad_id = _get_story_pipeline()
+    story_gen, model_id, pad_id, is_chat = _get_story_pipeline()
     prompt = _STORY_PROMPTS.get(model_id, _FALLBACK_PROMPT).format(
         subject=_extract_subject(caption),
     )
 
     gen_kwargs: dict[str, Any] = {
-        "max_new_tokens": 160,
+        "max_new_tokens": 220,
         "do_sample": True,
-        "temperature": 0.85,
+        "temperature": 0.7,
         "top_k": 50,
-        "top_p": 0.95,
-        "repetition_penalty": 1.15,
+        "top_p": 0.9,
+        "repetition_penalty": 1.1,
         "no_repeat_ngram_size": 3,
     }
     if pad_id is not None:
         gen_kwargs["pad_token_id"] = pad_id
 
-    outputs = story_gen(prompt, **gen_kwargs)
-    generated = str(outputs[0].get("generated_text", "")) if outputs else ""
-
-    if prompt and generated.startswith(prompt):
-        generated = generated[len(prompt):]
+    # Instruction-tuned models expect chat-formatted messages, not a
+    # bare string. Passing a raw string makes them treat the
+    # instruction as text to continue, which produces the "ignored
+    # the caption" behaviour.
+    if is_chat:
+        outputs = story_gen(
+            [{"role": "user", "content": prompt}],
+            **gen_kwargs,
+        )
+        generated_full = outputs[0].get("generated_text", "")
+        if isinstance(generated_full, list) and generated_full:
+            last = generated_full[-1]
+            generated = (
+                last.get("content", "") if isinstance(last, dict)
+                else str(last)
+            )
+        else:
+            generated = str(generated_full)
+    else:
+        outputs = story_gen(prompt, **gen_kwargs)
+        generated = str(outputs[0].get(
+            "generated_text", "")) if outputs else ""
+        if prompt and generated.startswith(prompt):
+            generated = generated[len(prompt):]
 
     generated = re.sub(r"\s+", " ", generated).strip()
+    # Strip emojis BEFORE sentence repair: the emoji regex can remove
+    # characters that would otherwise confuse the trailing-punctuation
+    # scan. The final strip (below) catches anything the model emitted
+    # after repair re-introduced.
     generated = _strip_emojis(generated)
     generated = _repair_story_end(generated)
     generated = _truncate_to_word_count(
         generated, high=STORY_WORD_COUNT_TRIM_HIGH)
+    # distilgpt2 occasionally emits age-inappropriate words. Log for
+    # review but ship the model output unchanged: the product spec
+    # requires every word to come from the LLM.
     if not _is_safe_for_kids(generated):
         logger.warning(
             "Story output failed the kid-safety check; shipping the "
@@ -395,19 +447,24 @@ def _strip_emojis(text: str) -> str:
 
 
 def _extract_subject(caption: str) -> str:
-    """Strip only a leading article; keep the caption's natural grammar."""
+    """Strip only a leading article; keep the caption's natural grammar.
+
+    TinyStories drifts badly if the seed exceeds a few words; SmolLM2
+    handles the full caption fine. We cap at 12 tokens to keep both
+    models on-task without truncating the caption's substance.
+    """
     words = re.findall(r"[A-Za-z']+", caption)
     if words and words[0].lower() in _LEADING_ARTICLES:
         words = words[1:]
-    return " ".join(words[:8]) or "a happy child"
+    return " ".join(words[:12]) or "a happy child"
 
 
 def _is_safe_for_kids(text: str) -> bool:
     """True unless ``text`` contains any word in the kid blocklist.
 
     Used to log a warning when the text-generation pipeline emits an
-    age-inappropriate word (most likely from the distilgpt2 fallback).
-    The story is still shipped per the product spec.
+    age-inappropriate word. The story is still shipped per the product
+    spec, which requires every word to come from the LLM.
     """
     if not text:
         return True
@@ -420,7 +477,7 @@ def _truncate_to_word_count(text: str, *, high: int) -> str:
 
     Returns the input unchanged if it is already within the limit or
     contains no sentence boundaries. Off-spec short stories are
-    surfaced by ``_validate_word_count`` after this function returns.
+    surfaced by the inline notice in ``_render_story_output``.
     """
     if not text:
         return text
@@ -570,23 +627,6 @@ def _flush_deferred_error() -> None:
         st.error(message)
 
 
-def _validate_word_count(story: str) -> None:
-    """Warn (without blocking) if a story lands outside the 50–100 word target.
-
-    The generator tries to land in this window; this is the safety net
-    that surfaces an off-spec output instead of silently shipping it.
-    """
-    if not story:
-        return
-    n = len(story.split())
-    if n < STORY_WORD_COUNT_LOW or n > STORY_WORD_COUNT_HIGH:
-        st.warning(
-            f"📏 Your story is {n} words (the target is "
-            f"{STORY_WORD_COUNT_LOW}–{STORY_WORD_COUNT_HIGH} words). "
-            "Tap the magic button again for a different story!"
-        )
-
-
 def _looks_offline(exc: BaseException) -> bool:
     """True if ``exc`` or any chained cause looks like a network failure.
 
@@ -609,7 +649,7 @@ def _looks_offline(exc: BaseException) -> bool:
 
 # (icon, title, sub). The '&' in "Listen & save" is pre-escaped for HTML.
 _QUEST_STEPS: list[tuple[str, str, str]] = [
-    ("🎨", "Pick a picture",    "PNG · JPG · WEBP · up to 5 MB"),
+    ("🎨", "Pick a picture",    "PNG · JPG · WEBP · up to 25 MB"),
     ("✨", "Make my story",     "Tap the big pink button"),
     ("🎧", "Listen &amp; save", "Hear your story come alive"),
 ]
@@ -618,7 +658,7 @@ _QUEST_STEPS: list[tuple[str, str, str]] = [
 def _render_floating_scene() -> None:
     """Render the fixed-position floating background emoji scene."""
     _html(
-        '<div class="scene">'
+        '<div class="scene" aria-hidden="true">'
         '<span class="float f1">🌈</span><span class="float f2">⭐</span>'
         '<span class="float f3">🎈</span><span class="float f4">☁️</span>'
         '<span class="float f5">✨</span><span class="float f6">🦄</span>'
@@ -664,7 +704,7 @@ def _render_progress_loader(step: int) -> None:
     """Render the inline turning-book loader with progress bar and emoji."""
     emoji, pct, note = LOADER_STEPS[min(step, len(LOADER_STEPS) - 1)]
     _html(
-        f'<div class="progress-inline">'
+        f'<div class="progress-inline" role="status" aria-live="polite">'
         f'<div class="turning-book" aria-hidden="true">'
         f'<div class="base"><div class="left"></div><div class="right"></div></div>'
         f'<div class="spine"></div>'
@@ -715,7 +755,10 @@ def _render_download_buttons(audio_bytes: bytes, story: str) -> None:
 
 def _render_story_output(story: str, audio_bytes: bytes) -> None:
     """Render the completed story: heading, text, word count, audio, downloads."""
-    if not st.session_state.celebrated:
+    # Only celebrate when audio exists — a TTS failure reaches this
+    # function with audio_bytes == b"" and the user has just seen an
+    # error toast, so balloons would be tone-deaf.
+    if audio_bytes and not st.session_state.celebrated:
         st.balloons()
         st.session_state.celebrated = True
 
@@ -730,6 +773,16 @@ def _render_story_output(story: str, audio_bytes: bytes) -> None:
         f'<span class="wc-sep">words</span>'
         f'</div>'
     )
+
+    # Word-count feedback lives here, not in the pipeline: anything
+    # shown during the pipeline is wiped by its final rerun. Only
+    # fires in the rare case where the model landed under target.
+    if word_count < STORY_WORD_COUNT_LOW:
+        st.info(
+            f"📏 This story is a little short at {word_count} words "
+            f"(the target is {STORY_WORD_COUNT_LOW}–{STORY_WORD_COUNT_HIGH}). "
+            "Tap the magic button again for a longer one!"
+        )
 
     st.audio(audio_bytes, format="audio/mp3")
     _render_download_buttons(audio_bytes, story)
@@ -976,7 +1029,6 @@ def _run_story_pipeline(
         return
 
     _paint(2)
-    _validate_word_count(story)
 
     # ----- Stage 3: text-to-speech -----
     # TTS only needs an internet call (gTTS → Google). If it fails we
@@ -988,6 +1040,7 @@ def _run_story_pipeline(
         _fail(_ERR_TTS_NETWORK, keep_story=story, keep_caption=caption)
         return
     except Exception as exc:                            # noqa: BLE001
+        # _looks_offline() catches a URLError wrapped inside gTTSError.
         if _looks_offline(exc):
             logger.warning("TTS failed with underlying network error: %s", exc)
             _fail(_ERR_TTS_NETWORK, keep_story=story, keep_caption=caption)
@@ -1038,9 +1091,12 @@ def main() -> None:
     with page_r:
         render_story_page()
 
-    _flush_deferred_error()
+    # These two can trigger st.rerun(), which wipes any on-screen
+    # toast — so the deferred error must be flushed AFTER them.
     _clear_stale_state_if_needed(uploaded)
     _run_story_pipeline(uploaded, state, make_story)
+
+    _flush_deferred_error()
     _render_footer()
 
 

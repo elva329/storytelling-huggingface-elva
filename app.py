@@ -166,12 +166,14 @@ DEFAULT_SESSION_STATE: dict[str, Any] = {
 }
 
 # Assignment requirement: stories must be 50–100 words. The generator
-# trims to (high − 7) so the canonical "happily ever after" closer
-# still fits; _validate_word_count warns the user if anything slipped
-# through the cracks.
+# trims to ``high`` so the LLM-generated story lands inside the
+# assignment's word-count window; ``_validate_word_count`` warns the
+# user if a model output ever slips outside that window. No hard-coded
+# sentences are ever appended — every word the user reads comes from
+# the text-generation model.
 STORY_WORD_COUNT_LOW: int = 50
 STORY_WORD_COUNT_HIGH: int = 100
-STORY_WORD_COUNT_TRIM_HIGH: int = STORY_WORD_COUNT_HIGH - 7
+STORY_WORD_COUNT_TRIM_HIGH: int = STORY_WORD_COUNT_HIGH
 
 # Steps shown by the inline turning-book loader. Each tuple is
 # (emoji, fractional progress, status text). Index matches
@@ -352,18 +354,23 @@ def text2story(caption: str) -> str:
     generated = re.sub(r"\s+", " ", generated).strip()
     generated = _strip_emojis(generated)              # strip early
     generated = _repair_story_end(generated)
-    # Truncate FIRST (leaves ~7 words of room) so the canonical happy
-    # ending added below is never dropped by the word-count cap.
+    # Trim to the assignment's word-count window. Whatever the LLM
+    # emitted IS the story — we never inject hard-coded sentences
+    # (e.g. "happily ever after") on top of the model's output.
     generated = _truncate_to_word_count(
         generated,
         low=STORY_WORD_COUNT_LOW,
         high=STORY_WORD_COUNT_TRIM_HIGH,
     )
-    generated = _ensure_happy_ending(generated)
     if not _is_safe_for_kids(generated):
-        # The distilgpt2 fallback occasionally emits age-inappropriate
-        # words; ship a vetted safe story instead of the model output.
-        generated = _safe_fallback_story(caption)
+        # distilgpt2 occasionally emits age-inappropriate words.
+        # We log it for review but ship the LLM-generated story as-is
+        # (no hard-coded substitute) per the assignment's "story must
+        # come from the LLM" requirement.
+        logger.warning(
+            "Story output failed the kid-safety check; shipping the "
+            "model output anyway per user policy."
+        )
     return _strip_emojis(generated)                   # strip final
 
 
@@ -391,19 +398,6 @@ def text2audio(story_text: str) -> bytes:
 # ---------------------------------------------------------------------------
 
 _LEADING_ARTICLES = {"a", "an", "the"}
-_HAPPY_ENDING = " And they all lived happily ever after."
-
-# Varied closers used only when a story lands under the 50-word minimum.
-# Kept short, natural, and non-repeating so the padding never looks broken.
-# The last entry is intentionally long so a very short (~30-word) story
-# still reaches the assignment's 50-word floor.
-_EXTRA_CLOSERS: list[str] = [
-    " Everyone smiled and clapped.",
-    " What a wonderful day it was!",
-    " The end.",
-    " And they played together every day, sharing toys, snacks, and big "
-    "warm hugs. And they all lived happily ever after.",
-]
 
 
 # Word blocklist for the kid-safety pass. TinyStories is trained on
@@ -474,9 +468,10 @@ def _extract_subject(caption: str) -> str:
 def _is_safe_for_kids(text: str) -> bool:
     """Return False if ``text`` contains any word in the kid blocklist.
 
-    Used to gate the output of the text-generation pipeline so any
-    age-inappropriate word (most likely from the distilgpt2 fallback)
-    is replaced by a vetted safe story instead.
+    Used to log a warning when the text-generation pipeline emits an
+    age-inappropriate word (most likely from the distilgpt2 fallback).
+    The LLM-generated story is still shipped as-is per the
+    assignment's "story must come from the LLM" requirement.
     """
     if not text:
         return True
@@ -484,32 +479,12 @@ def _is_safe_for_kids(text: str) -> bool:
     return not (words & _KID_BLOCKLIST)
 
 
-def _safe_fallback_story(caption: str) -> str:
-    """Return a pre-written, vetted safe story.
-
-    Used when the model's output fails the kid-safety check. Subject is
-    pulled from the caption when possible so the fallback still feels
-    on-topic to the user.
-    """
-    subject = _extract_subject(caption) or "a happy child"
-    return (
-        f"Once upon a time, there was {subject} who loved to play. "
-        f"They ran and jumped and laughed with all their friends. "
-        f"They shared toys, snacks, and big warm hugs. "
-        f"At the end of the day, they went home feeling tired and happy. "
-        f"What a wonderful day it was! "
-        f"They played together every day, sharing toys, snacks, and big "
-        f"warm hugs, until the stars came out and they fell asleep smiling. "
-        f"And they all lived happily ever after."
-    )
-
-
 def _truncate_to_word_count(text: str, *, low: int, high: int) -> str:
     """Trim to ≤ high words, always ending on a COMPLETE sentence.
 
-    If the trimmed story falls under ``low`` words, pad with distinct
-    closers (never the same line twice) so the final count lands inside
-    the ``[low, high]`` window required by the assignment.
+    If the trimmed story falls under ``low`` words, returns the short
+    story unchanged; ``_validate_word_count`` surfaces a friendly
+    warning so the user can retry for a longer one.
     """
     if not text:
         return text
@@ -528,15 +503,7 @@ def _truncate_to_word_count(text: str, *, low: int, high: int) -> str:
         kept.append(s)
         count += n
 
-    out = " ".join(kept).strip()
-
-    # Pad toward the low bound with distinct closers, not the same line.
-    for closer in _EXTRA_CLOSERS:
-        if 0 < len(out.split()) < low:
-            out = out.rstrip() + closer
-        else:
-            break
-    return out
+    return " ".join(kept).strip()
 
 
 # Trailing filler words to strip when a sentence is cut mid-phrase.
@@ -552,11 +519,8 @@ def _repair_story_end(text: str) -> str:
     """Fix ragged endings: dangling articles, trailing single letters,
     missing punctuation. Trims back to the last COMPLETE sentence.
 
-    Only repairs the ending; padding to reach the word-count minimum is
-    handled by ``_truncate_to_word_count``, and appending the canonical
-    "happily ever after" closer is handled by ``_ensure_happy_ending``.
-    Splitting those two steps means the happy ending is never dropped
-    by the word-count cap.
+    Only repairs the ending; the assignment's 50–100 word window is
+    enforced by ``_truncate_to_word_count``.
     """
     if not text:
         return text
@@ -574,20 +538,6 @@ def _repair_story_end(text: str) -> str:
         out = _TRAILING_FILLER.sub("", out).rstrip()
 
     return out
-
-
-def _ensure_happy_ending(text: str) -> str:
-    """Append "And they all lived happily ever after." if not already
-    present. Called AFTER ``_truncate_to_word_count`` so the appended
-    sentence is never dropped by the 100-word cap.
-    """
-    if not text:
-        return text
-    if not re.search(
-        r"(happily ever after|the end)\s*[.!]?\s*$", text, re.IGNORECASE
-    ):
-        text = text.rstrip() + _HAPPY_ENDING
-    return text
 
 
 # ---------------------------------------------------------------------------
@@ -693,9 +643,9 @@ def _validate_word_count(story: str) -> None:
     """Warn (don't block) if a story lands outside the 50–100 word target.
 
     The generator tries hard to land in this window — see
-    ``_truncate_to_word_count`` and ``_ensure_happy_ending`` — but if
-    a model output ever slips through, we surface a friendly warning
-    instead of silently shipping an off-spec story.
+    ``_truncate_to_word_count`` — but if a model output ever slips
+    through, we surface a friendly warning instead of silently
+    shipping an off-spec story.
     """
     if not story:
         return

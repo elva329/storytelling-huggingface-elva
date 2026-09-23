@@ -28,8 +28,8 @@
 #  • Every word the user reads must come from the LLM. No hard-coded
 #    sentences are ever appended.
 #  • The primary "Make My Story!" button must not reflow when its
-#    enabled/disabled state toggles. See NOTES.md for the CSS-only
-#    lockout rationale.
+#    enabled/disabled state toggles. See components.css for the
+#    CSS-only lockout rationale.
 #
 #  All styling lives in ./styles/.
 # =============================================================================
@@ -42,8 +42,7 @@ import logging
 import re
 import time
 import urllib.error
-import urllib.request
-from io import BytesIO
+from enum import Enum
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -56,6 +55,15 @@ from transformers import (
     pipeline,
 )
 from gtts import gTTS
+
+from constants import (
+    _EMOJI_RE,
+    _KID_BLOCKLIST,
+    _QUOTE_RE,
+    _TRAILING_FILLER,
+    _DANGLING_LETTER,
+    _LEADING_ARTICLES,
+)
 
 # gTTSError moved between gTTS modules across releases; import defensively.
 try:
@@ -140,6 +148,11 @@ CAPTION_MODEL = "Salesforce/blip-image-captioning-base"
 KID_STORY_MODEL = "roneneldan/TinyStories-33M"
 FALLBACK_STORY_MODEL = "distilgpt2"
 
+# How long to hold the "All done!" loader frame before committing the
+# story and rerunning. Small value: the loader is a UX nicety, not a
+# requirement, so we don't want to block the user for long.
+_FINAL_FRAME_DELAY_S: float = 0.25
+
 _STORY_PROMPTS: dict[str, str] = {
     KID_STORY_MODEL: "Once upon a time there was a {subject}. ",
     FALLBACK_STORY_MODEL: (
@@ -157,8 +170,9 @@ DEFAULT_SESSION_STATE: dict[str, Any] = {
     "audio_bytes": b"",
     "caption": "",
     "celebrated": False,
-    "phase": "idle",          # idle | working | done
+    "phase": "idle",           # idle | working | done
     "progress_step": 0,
+    "_error": "",              # deferred message; re-emitted next render
 }
 
 STORY_WORD_COUNT_LOW: int = 50
@@ -175,6 +189,15 @@ LOADER_STEPS: list[tuple[str, float, str]] = [
     ("🎤", 0.80, "Recording the voice"),
     ("✅", 1.00, "All done!"),
 ]
+
+
+class UploadState(str, Enum):
+    """Result of render_upload_page(). Callers branch on this rather
+    than on a `make_story` boolean, so 'no file' and 'bad file' are
+    distinguishable without relying on session_state."""
+    NO_FILE = "no_file"
+    BAD_FILE = "bad_file"
+    READY = "ready"
 
 
 # ---------------------------------------------------------------------------
@@ -249,11 +272,12 @@ def _get_caption_pipeline() -> Any:
 
 
 @st.cache_resource(show_spinner=False)
-def _get_story_pipeline() -> tuple[Any, str]:
+def _get_story_pipeline() -> tuple[Any, str, int | None]:
     """Load TinyStories (preferred) with distilgpt2 as a fallback.
 
-    Returns ``(text_generation_pipeline, model_id)`` for whichever
-    model loads first. Raises ``RuntimeError`` if none succeed.
+    Returns ``(pipeline, model_id, pad_token_id)``. ``pad_token_id`` is
+    cached here so callers don't have to re-inspect the tokenizer on
+    every generation. Raises ``RuntimeError`` if no model loads.
     """
     for model_id in (KID_STORY_MODEL, FALLBACK_STORY_MODEL):
         try:
@@ -264,7 +288,8 @@ def _get_story_pipeline() -> tuple[Any, str]:
                 model=model,
                 tokenizer=tokenizer,
             )
-            return text_gen, model_id
+            pad_id = getattr(tokenizer, "pad_token_id", None)
+            return text_gen, model_id, pad_id
         except (OSError, RuntimeError, ValueError) as exc:
             logger.warning("Could not load %s: %s", model_id, exc)
             continue
@@ -275,26 +300,17 @@ def _get_story_pipeline() -> tuple[Any, str]:
 # 3. Core pipeline: image → caption → story → audio
 # ---------------------------------------------------------------------------
 
-def img2text(url_or_image: str | Image.Image) -> str:
+def img2text(image: Image.Image) -> str:
     """Caption an image with the BLIP image-to-text pipeline.
 
-    Accepts either a PIL Image (the usual case from the Streamlit
-    uploader) or a URL string pointing at a remote image. Returns a
-    capitalised, stripped caption, or an empty string on decode failure.
+    Returns a capitalised, stripped caption, or an empty string on
+    decode failure. Only PIL Images are accepted; the app never
+    fetches remote URLs.
     """
     captioner = _get_caption_pipeline()
 
-    if isinstance(url_or_image, Image.Image):
-        image = (
-            url_or_image
-            if url_or_image.mode == "RGB"
-            else url_or_image.convert("RGB")
-        )
-    else:
-        with urllib.request.urlopen(str(url_or_image)) as response:
-            image = Image.open(BytesIO(response.read())).convert("RGB")
-
-    results = captioner(image, max_new_tokens=40)
+    rgb = image if image.mode == "RGB" else image.convert("RGB")
+    results = captioner(rgb, max_new_tokens=40)
     text = (results[0].get("generated_text", "") if results else "").strip()
     return text[0].upper() + text[1:] if text else text
 
@@ -307,7 +323,7 @@ def text2story(caption: str) -> str:
     spec's word-count window. Every word comes from the model — no
     hard-coded sentences are appended.
     """
-    story_gen, model_id = _get_story_pipeline()
+    story_gen, model_id, pad_id = _get_story_pipeline()
     prompt = _STORY_PROMPTS.get(model_id, _FALLBACK_PROMPT).format(
         subject=_extract_subject(caption),
     )
@@ -321,9 +337,8 @@ def text2story(caption: str) -> str:
         "repetition_penalty": 1.15,
         "no_repeat_ngram_size": 3,
     }
-    tok = getattr(story_gen, "tokenizer", None)
-    if tok is not None and getattr(tok, "pad_token_id", None) is not None:
-        gen_kwargs["pad_token_id"] = tok.pad_token_id
+    if pad_id is not None:
+        gen_kwargs["pad_token_id"] = pad_id
 
     outputs = story_gen(prompt, **gen_kwargs)
     generated = str(outputs[0].get("generated_text", "")) if outputs else ""
@@ -339,10 +354,7 @@ def text2story(caption: str) -> str:
     generated = _strip_emojis(generated)
     generated = _repair_story_end(generated)
     generated = _truncate_to_word_count(
-        generated,
-        low=STORY_WORD_COUNT_LOW,
-        high=STORY_WORD_COUNT_TRIM_HIGH,
-    )
+        generated, high=STORY_WORD_COUNT_TRIM_HIGH)
     # distilgpt2 occasionally emits age-inappropriate words. Log for
     # review but ship the model output unchanged: the product spec
     # requires every word to come from the LLM.
@@ -377,55 +389,6 @@ def text2audio(story_text: str) -> bytes:
 # 3a. Small text helpers
 # ---------------------------------------------------------------------------
 
-_LEADING_ARTICLES = {"a", "an", "the"}
-
-
-# Words that make a story unsuitable for ages 3–10. TinyStories is
-# trained on child-safe text and rarely trips these; distilgpt2
-# occasionally does. Checked against the GENERATED story (post-cleanup),
-# not the caption.
-_KID_BLOCKLIST: set[str] = {
-    # violence / harm
-    "kill", "killed", "kills", "killing",
-    "die", "died", "dies", "dead", "death", "dying",
-    "hurt", "hurts", "hurting",
-    "blood", "bloody", "wound", "wounded",
-    "weapon", "gun", "knife", "sword", "bomb", "grenade",
-    "war", "battle", "fight", "fighting", "fought",
-    "attack", "attacked", "attacking",
-    "stab", "stabbed", "shoot", "shot", "shooting",
-    # fear / supernatural
-    "scary", "scared", "frighten", "frightened", "afraid",
-    "monster", "monsters", "ghost", "ghosts",
-    "witch", "wizard", "demon", "demons", "devil", "devils",
-    "nightmare", "nightmares", "terror", "horror",
-    "creepy", "evil",
-    # substances
-    "alcohol", "beer", "wine", "drunk", "intoxicated",
-    "drug", "drugs", "smoke", "smoking", "cigarette", "cigar",
-    "vape", "vaping",
-    # mild profanity
-    "damn", "damned", "crap",
-    # mature themes
-    "naked", "nude", "sexy", "romance", "romantic",
-}
-
-# Matches most emoji codepoints: pictographs, symbols, dingbats,
-# variation selectors, ZWJ sequences, and skin-tone modifiers.
-_EMOJI_RE = re.compile(
-    "[\U0001F300-\U0001F5FF\U0001F600-\U0001F64F\U0001F680-\U0001F6FF"
-    "\U0001F700-\U0001F77F\U0001F780-\U0001F7FF\U0001F800-\U0001F8FF"
-    "\U0001F900-\U0001F9FF\U0001FA00-\U0001FA6F\U0001FA70-\U0001FAFF"
-    "\U00002600-\U000026FF\U00002700-\U000027BF\U0001F1E6-\U0001F1FF"
-    "\U0000FE00-\U0000FE0F\U0001F3FB-\U0001F3FF\U0000200D\U00002B00-\U00002BFF]+",
-    flags=re.UNICODE,
-)
-
-# Double quotes (straight + curly) and backticks. Apostrophes are NOT
-# in this class so contractions like "it's" survive.
-_QUOTE_RE = re.compile(r'["“”„«»`]')
-
-
 def _strip_emojis(text: str) -> str:
     """Remove emojis and quotes that gTTS would mispronounce; tidy spacing."""
     if not text:
@@ -459,12 +422,12 @@ def _is_safe_for_kids(text: str) -> bool:
     return not (words & _KID_BLOCKLIST)
 
 
-def _truncate_to_word_count(text: str, *, low: int, high: int) -> str:
+def _truncate_to_word_count(text: str, *, high: int) -> str:
     """Trim to ≤ ``high`` words, always ending on a complete sentence.
 
-    Returns the story unchanged if it falls under ``low`` words;
-    ``_validate_word_count`` then surfaces a friendly warning so the
-    user can retry for a longer story.
+    Returns the input unchanged if it is already within the limit or
+    contains no sentence boundaries. Off-spec short stories are
+    surfaced by ``_validate_word_count`` after this function returns.
     """
     if not text:
         return text
@@ -484,15 +447,6 @@ def _truncate_to_word_count(text: str, *, low: int, high: int) -> str:
         count += n
 
     return " ".join(kept).strip()
-
-
-# Filler words to strip when a sentence is cut mid-phrase.
-_TRAILING_FILLER = re.compile(
-    r"\b(a|an|the|and|but|or|so|because|with|for|to|of|in|on|at|"
-    r"was|were|is|are|be|been|being)\s*$",
-    re.IGNORECASE,
-)
-_DANGLING_LETTER = re.compile(r"\s+[A-Z]\.\s*$")
 
 
 def _repair_story_end(text: str) -> str:
@@ -523,33 +477,16 @@ def _repair_story_end(text: str) -> str:
 # 3b. Session-state helpers
 # ---------------------------------------------------------------------------
 
-# Sentinel used by _apply_session_state to distinguish "init if missing"
-# from "overwrite". Cannot collide with any real default value because
-# dict[str, Any] defaults are JSON-compatible scalars.
-_SETDEFAULTS: Any = object()
-
-
-def _apply_session_state(mode: Any) -> None:
-    """Bulk-assign every ``DEFAULT_SESSION_STATE`` value to session_state.
-
-    Pass ``_SETDEFAULTS`` for setdefault semantics (init-only), or
-    ``None`` to overwrite every key back to its default.
-    """
-    for key, default in DEFAULT_SESSION_STATE.items():
-        if mode is _SETDEFAULTS:
-            st.session_state.setdefault(key, default)
-        else:
-            st.session_state[key] = default
-
-
 def _init_session_state() -> None:
     """Populate st.session_state with default values on first run."""
-    _apply_session_state(_SETDEFAULTS)
+    for key, default in DEFAULT_SESSION_STATE.items():
+        st.session_state.setdefault(key, default)
 
 
 def _reset_session_state() -> None:
     """Reset every StorySpark session key back to its default value."""
-    _apply_session_state(None)
+    for key, default in DEFAULT_SESSION_STATE.items():
+        st.session_state[key] = default
 
 
 # ---------------------------------------------------------------------------
@@ -601,11 +538,18 @@ _ERR_TTS_OTHER: str = (
 )
 
 
-def _reset_pipeline_state() -> None:
-    """Clear the loader slot and return the phase machine to idle.
+def _fail(
+    message: str,
+    *,
+    keep_story: str = "",
+    keep_caption: str = "",
+) -> None:
+    """Surface a kid-friendly error and return the state machine to a
+    safe state in a single call.
 
-    Called by every stage-specific error handler so the user can retry
-    without manual state cleanup. Safe to call when no loader exists.
+    Set ``keep_story`` to preserve a partially-successful output (used
+    by the TTS stage, which loses only audio on failure). Otherwise the
+    phase drops back to idle so the user can retry from the top.
     """
     slot = st.session_state.get("_loader_slot")
     if slot is not None:
@@ -614,8 +558,28 @@ def _reset_pipeline_state() -> None:
         except Exception:                   # noqa: BLE001 — defensive
             logger.exception("Failed to clear loader slot")
     st.session_state.pop("_loader_slot", None)
-    st.session_state.phase = "idle"
     st.session_state.progress_step = 0
+
+    if keep_story:
+        st.session_state.story = keep_story
+        st.session_state.audio_bytes = b""
+        st.session_state.caption = keep_caption
+        st.session_state.celebrated = False
+        st.session_state.phase = "done"
+    else:
+        st.session_state.phase = "idle"
+
+    # Defer the toast: st.rerun() clears it before the user reads it,
+    # so we stash the text and re-emit it on the next render pass.
+    st.session_state._error = message
+    st.rerun()
+
+
+def _flush_deferred_error() -> None:
+    """Re-emit any error stashed by _fail() before the previous rerun."""
+    message = st.session_state.pop("_error", "")
+    if message:
+        st.error(message)
 
 
 def _validate_word_count(story: str) -> None:
@@ -640,17 +604,13 @@ def _looks_offline(exc: BaseException) -> bool:
 
     gTTS wraps network failures in gTTSError, so the interesting cause
     is often one or two links down the ``__cause__`` / ``__context__``
-    chain. Walks the chain (guarding against cycles) to find it.
+    chain. Python exception chains cannot cycle, so the walk terminates.
     """
-    seen: set[int] = set()
     current: BaseException | None = exc
-    while current is not None and id(current) not in seen:
-        seen.add(id(current))
+    while current is not None:
         if isinstance(current, _NETWORK_ERRORS):
             return True
-        next_exc = getattr(current, "__cause__", None) or getattr(
-            current, "__context__", None
-        )
+        next_exc = current.__cause__ or current.__context__
         current = next_exc if isinstance(next_exc, BaseException) else None
     return False
 
@@ -824,12 +784,12 @@ def _render_empty_state() -> None:
 # 5. UI — page-level renderers
 # ---------------------------------------------------------------------------
 
-def render_upload_page() -> tuple[Any, bool]:
+def render_upload_page() -> tuple[Any, UploadState, bool]:
     """Render the LEFT (upload) page.
 
-    Returns ``(uploaded, make_story)`` where ``uploaded`` is the current
-    ``UploadedFile`` or ``None``, and ``make_story`` is True only on the
-    run where the user just clicked 'Make My Story!'.
+    Returns ``(uploaded, state, make_story)`` where ``state`` is one of
+    ``NO_FILE``, ``BAD_FILE`` or ``READY``, and ``make_story`` is True
+    only on the run where the user just clicked 'Make My Story!'.
     """
     _page_heading("🎨", "Put your picture here!")
 
@@ -844,7 +804,7 @@ def render_upload_page() -> tuple[Any, bool]:
     if uploaded is None:
         active_step = PHASE_TO_ACTIVE_STEP.get(st.session_state.phase, 1)
         _render_quest_path(active_step)
-        return uploaded, False
+        return uploaded, UploadState.NO_FILE, False
 
     # Rewind so a second Image.open() in the pipeline sees the same bytes.
     uploaded.seek(0)
@@ -862,9 +822,7 @@ def render_upload_page() -> tuple[Any, bool]:
     except (Image.UnidentifiedImageError, OSError) as exc:
         logger.warning("User uploaded an unreadable image: %s", exc)
         st.error(_ERR_BAD_IMAGE)
-        # Skip preview + button so the user can't trigger the pipeline
-        # on a known-bad file.
-        return uploaded, False
+        return uploaded, UploadState.BAD_FILE, False
 
     st.image(preview_image, use_container_width=True)
 
@@ -881,7 +839,7 @@ def render_upload_page() -> tuple[Any, bool]:
             key="make_story_btn",
         )
 
-    return uploaded, make_story
+    return uploaded, UploadState.READY, make_story
 
 
 def render_story_page() -> None:
@@ -911,13 +869,20 @@ def render_story_page() -> None:
 # ---------------------------------------------------------------------------
 
 def _clear_stale_state_if_needed(uploaded: Any) -> None:
-    """Reset session state if the user removed their upload but a story exists."""
+    """Reset session state if the user removed their upload but a story
+    still exists. The subsequent st.rerun() is a one-shot: the reset
+    guarantees the condition is false on the next pass, so the rerun
+    fires at most once per user-cleared upload."""
     if uploaded is None and (st.session_state.story or st.session_state.audio_bytes):
         _reset_session_state()
         st.rerun()
 
 
-def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
+def _run_story_pipeline(
+    uploaded: Any,
+    state: UploadState,
+    make_story: bool,
+) -> None:
     """Drive the image → story → audio state machine.
 
     Runs in two Streamlit reruns:
@@ -937,6 +902,7 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
     # ---- Phase 1: user just clicked the magic button ----
     if (
         make_story
+        and state is UploadState.READY
         and uploaded is not None
         and st.session_state.phase == "idle"
     ):
@@ -944,9 +910,10 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         st.session_state.progress_step = 0
         st.rerun()
 
-    # Defensive guard: a click can only reach here without a file if
-    # session_state is stale. Tell the user instead of silently returning.
-    if make_story and uploaded is None and st.session_state.phase == "idle":
+    # Defensive guard: a click can only reach here without a valid file
+    # if session_state is stale. Tell the user instead of silently
+    # returning.
+    if make_story and state is UploadState.NO_FILE and st.session_state.phase == "idle":
         st.warning(_ERR_NO_IMAGE)
         return
 
@@ -962,8 +929,7 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         # render_upload_page already validated this; a stale session
         # could still let an invalid upload slip through. Same message.
         logger.warning("Pipeline image re-validation failed: %s", exc)
-        _reset_pipeline_state()
-        st.error(_ERR_BAD_IMAGE)
+        _fail(_ERR_BAD_IMAGE)
         return
 
     # Bind before the try blocks so every name exists on early return.
@@ -984,19 +950,16 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         caption = img2text(working_image)
     except _NETWORK_ERRORS as exc:
         logger.warning("Network error during captioning: %s", exc)
-        _reset_pipeline_state()
-        st.error(_ERR_OFFLINE)
+        _fail(_ERR_OFFLINE)
         return
     except Exception:                                   # noqa: BLE001
         logger.exception("Captioning failed")
-        _reset_pipeline_state()
-        st.error(_ERR_CAPTION)
+        _fail(_ERR_CAPTION)
         return
 
     if not caption.strip():
         logger.info("Captioner returned an empty string")
-        _reset_pipeline_state()
-        st.warning(_ERR_EMPTY_CAPTION)
+        _fail(_ERR_EMPTY_CAPTION)
         return
 
     # ----- Stage 2: story generation -----
@@ -1005,27 +968,23 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         story = text2story(caption)
     except _NETWORK_ERRORS as exc:
         logger.warning("Network error during story generation: %s", exc)
-        _reset_pipeline_state()
-        st.error(_ERR_OFFLINE)
+        _fail(_ERR_OFFLINE)
         return
     except RuntimeError as exc:
         # _get_story_pipeline raises RuntimeError when both models fail
         # to load. Surface as "models are napping" instead of leaking
         # the underlying HF / OS error.
         logger.error("Story model unavailable: %s", exc)
-        _reset_pipeline_state()
-        st.error(_ERR_MODEL_LOAD)
+        _fail(_ERR_MODEL_LOAD)
         return
     except Exception:                                   # noqa: BLE001
         logger.exception("Story generation failed")
-        _reset_pipeline_state()
-        st.error(_ERR_STORY)
+        _fail(_ERR_STORY)
         return
 
     if not story.strip():
         logger.info("text2story returned an empty string")
-        _reset_pipeline_state()
-        st.warning(_ERR_EMPTY_STORY)
+        _fail(_ERR_EMPTY_STORY)
         return
 
     _paint(2)
@@ -1038,39 +997,21 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
         audio_bytes = text2audio(story)
     except _NETWORK_ERRORS as exc:
         logger.warning("Network error during TTS: %s", exc)
-        st.session_state.story = story
-        st.session_state.audio_bytes = b""
-        st.session_state.caption = caption
-        st.session_state.celebrated = False
-        st.session_state.phase = "done"
-        st.session_state.progress_step = 0
-        st.session_state._loader_slot = None
-        st.error(_ERR_TTS_NETWORK)
-        st.rerun()
+        _fail(_ERR_TTS_NETWORK, keep_story=story, keep_caption=caption)
         return
     except Exception as exc:                            # noqa: BLE001
-        # _looks_offline() catches a URLError wrapped inside gTTSError.
         if _looks_offline(exc):
             logger.warning("TTS failed with underlying network error: %s", exc)
-            user_msg = _ERR_TTS_NETWORK
+            _fail(_ERR_TTS_NETWORK, keep_story=story, keep_caption=caption)
         else:
             logger.exception("TTS failed")
-            user_msg = _ERR_TTS_OTHER
-        st.session_state.story = story
-        st.session_state.audio_bytes = b""
-        st.session_state.caption = caption
-        st.session_state.celebrated = False
-        st.session_state.phase = "done"
-        st.session_state.progress_step = 0
-        st.session_state._loader_slot = None
-        st.error(user_msg)
-        st.rerun()
+            _fail(_ERR_TTS_OTHER, keep_story=story, keep_caption=caption)
         return
 
-    # ----- Stage 4: final paint + commit -----
-    _paint(3)
-    time.sleep(0.25)                  # let the final frame paint
-
+    # ----- Stage 4: commit + final paint -----
+    # The story is committed BEFORE the "All done!" frame is painted so
+    # an interrupt between the two never leaves the user looking at a
+    # finished loader with no story.
     st.session_state.story = story
     st.session_state.audio_bytes = audio_bytes
     st.session_state.caption = caption
@@ -1078,6 +1019,9 @@ def _run_story_pipeline(uploaded: Any, make_story: bool) -> None:
     st.session_state.phase = "done"
     st.session_state.progress_step = 0
     st.session_state._loader_slot = None
+
+    _paint(3)
+    time.sleep(_FINAL_FRAME_DELAY_S)
     st.rerun()
 
 
@@ -1102,12 +1046,13 @@ def main() -> None:
 
     page_l, page_r = st.columns([1, 1], gap="large")
     with page_l:
-        uploaded, make_story = render_upload_page()
+        uploaded, state, make_story = render_upload_page()
     with page_r:
         render_story_page()
 
+    _flush_deferred_error()
     _clear_stale_state_if_needed(uploaded)
-    _run_story_pipeline(uploaded, make_story)
+    _run_story_pipeline(uploaded, state, make_story)
     _render_footer()
 
 

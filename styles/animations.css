@@ -3,8 +3,13 @@
    Load AFTER components.css, BEFORE responsive.css.
 
    This is the single source of truth for every @keyframes rule in the
-   project. No static widget rules live here.
+   project, plus the selectors that consume those keyframes. No other
+   file may define a @keyframes.
    ========================================================================== */
+
+/* -------------------------------------------------------------------------
+   Floating background emoji
+   ------------------------------------------------------------------------- */
 
 .scene {
     position: fixed;

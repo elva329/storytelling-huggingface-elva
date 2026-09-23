@@ -8,13 +8,9 @@
 
 StorySpark turns any picture into a short, 50–100-word bedtime story that the app then reads aloud. Built with Hugging Face Transformers and Streamlit, designed for ages 3–10.
 
----
-
 ## 🎯 Objective
 
 Build a Python storytelling app that (1) accepts an uploaded image, (2) generates a 50–100-word narrative from it, (3) converts the story to audio, and (4) runs as an interactive Streamlit app deployable on Streamlit Cloud.
-
----
 
 ## ✨ Features
 
@@ -24,8 +20,6 @@ Build a Python storytelling app that (1) accepts an uploaded image, (2) generate
 - Text-to-speech playback (gTTS)
 - Download links for both story (`.txt`) and voice (`.mp3`)
 - Kid-friendly UI: rainbow title, big buttons, animated loader, Ollie the Story Owl guide
-
----
 
 ## 🛠 Technologies
 
@@ -38,7 +32,6 @@ Build a Python storytelling app that (1) accepts an uploaded image, (2) generate
 | Images | Pillow |
 | Runtime | PyTorch, Python 3.10+ |
 
----
 
 ## 🤗 Models Used
 
@@ -50,7 +43,6 @@ Build a Python storytelling app that (1) accepts an uploaded image, (2) generate
 
 The primary story model is instruction-tuned, so it follows the "write a story about this scene" prompt. If it fails to load, the pipeline falls back to TinyStories, which is a completion model and cannot follow instructions — it only continues a seed sentence.
 
----
 
 ## 🔄 Pipeline
 
@@ -63,7 +55,6 @@ The caption's leading article is stripped, then substituted into a model-specifi
 **3. Story → Audio.**
 Emojis and quotes are stripped, then gTTS produces MP3 bytes rendered in an HTML5 audio player. If TTS fails, the story still renders so the user can read it.
 
----
 
 ## 🗂 Folder Structure
 
@@ -84,7 +75,6 @@ Emojis and quotes are stripped, then gTTS produces MP3 bytes rendered in an HTML
 
 The four CSS files are loaded in this order: `style.css → components.css → animations.css → responsive.css`. Later files override earlier ones on selector ties.
 
----
 
 ## 💻 Install & Run Locally
 
@@ -100,7 +90,6 @@ streamlit run app.py
 
 Open <http://localhost:8501>. The first run downloads about 1.7 GB of models to `~/.cache/huggingface` — BLIP (~1 GB) and SmolLM2-360M (~720 MB). Later runs start in seconds.
 
----
 
 ## ☁️ Deploy on Streamlit Cloud
 
@@ -114,7 +103,6 @@ Streamlit Cloud installs from `requirements.txt`. A cold start takes 60–180 s 
 
 Paste the resulting URL into the `Live app:` line at the top of this file once deployment is verified.
 
----
 
 ## 🧪 Testing
 
@@ -127,8 +115,6 @@ Upload a photo with a clear subject → click **Make My Story!** → confirm a c
 - Image over the upload limit → rejected by Streamlit before reaching the app.
 - Offline mode → story still renders; a friendly message explains that audio is unavailable.
 - Removing the upload mid-story → the story clears and the empty state returns.
-
----
 
 ## 🛡 Child-Safety Decisions
 

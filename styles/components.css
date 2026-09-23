@@ -308,7 +308,7 @@ button[data-testid="stBaseButton-primary"] > * {
     z-index: 2;
 }
 
-/* --- Step 5: Hover/active — feedback without position change --- */
+/* --- Step 5: Hover/active — same signature as .ss-dl-link --- */
 div[data-testid="stButton"] > button[kind="primary"]:not(:disabled):hover,
 div[data-testid="stButton"] > button[data-testid="baseButton-primary"]:not(:disabled):hover,
 div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:not(:disabled):hover,
@@ -318,16 +318,16 @@ div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:not(:di
 button[kind="primary"]:not(:disabled):hover,
 button[data-testid="baseButton-primary"]:not(:disabled):hover,
 button[data-testid="stBaseButton-primary"]:not(:disabled):hover {
-    transform: none !important;
+    transform: translateY(-1px) !important;
+    filter: brightness(1.05) !important;
     margin: 0 auto !important;
     height: 62px !important;
     min-height: 62px !important;
     max-height: 62px !important;
-    filter: brightness(1.06) saturate(1.05) !important;
     box-shadow:
-        0 5px 0 var(--coral-deep),
-        0 7px 0 var(--coral-deeper),
-        0 18px 32px rgba(255, 111, 145, 0.55),
+        0 7px 0 var(--coral-deep),
+        0 9px 0 var(--coral-deeper),
+        0 20px 32px rgba(255, 111, 145, 0.55),
         inset 0 2px 0 rgba(255, 255, 255, 0.5) !important;
 }
 
@@ -340,24 +340,17 @@ div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:not(:di
 button[kind="primary"]:not(:disabled):active,
 button[data-testid="baseButton-primary"]:not(:disabled):active,
 button[data-testid="stBaseButton-primary"]:not(:disabled):active {
-    transform: none !important;
+    transform: translateY(2px) !important;
+    filter: brightness(0.97) !important;
     margin: 0 auto !important;
     height: 62px !important;
     min-height: 62px !important;
     max-height: 62px !important;
-    filter: brightness(0.96) saturate(1.1) !important;
     box-shadow:
-        0 5px 0 var(--coral-deep),
-        0 7px 0 var(--coral-deeper),
-        0 10px 18px rgba(255, 111, 145, 0.4),
+        0 2px 0 var(--coral-deep),
+        0 4px 0 var(--coral-deeper),
+        0 6px 12px rgba(255, 111, 145, 0.4),
         inset 0 2px 0 rgba(255, 255, 255, 0.35) !important;
-}
-
-button[kind="primary"]:focus-visible,
-button[data-testid="baseButton-primary"]:focus-visible,
-button[data-testid="stBaseButton-primary"]:focus-visible {
-    outline: 4px dashed var(--sunny) !important;
-    outline-offset: 5px !important;
 }
 
 /* --- Step 6: Sparkles around the wrapper — decoration only --- */

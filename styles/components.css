@@ -1,8 +1,8 @@
 /* ==========================================================================
    📦  StorySpark — components.css
-   Widgets: quest path, buttons, download links, story, word-count, audio,
-   empty-state chrome. Only @keyframes fade-in lives here.
-   Load AFTER style.css, BEFORE animations.css.
+   Widgets: quest path, buttons, download links, story text, word-count,
+   audio player, empty state (Ollie), progress loader, save-button row.
+   Load AFTER style.css. All @keyframes live in animations.css.
    ========================================================================== */
 
 /* =================================================================
@@ -167,7 +167,6 @@ div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"],
 button[kind="primary"],
 button[data-testid="baseButton-primary"],
 button[data-testid="stBaseButton-primary"] {
-    /* Geometry — LOCKED with !important on every dimension */
     box-sizing: border-box !important;
     width: auto !important;
     min-width: 260px !important;
@@ -180,9 +179,6 @@ button[data-testid="stBaseButton-primary"] {
     border-radius: 999px !important;
     border: 4px solid #ffffff !important;
 
-    /* Typography — matches .ss-dl-link (save buttons) in family, weight,
-       tracking, stroke. The primary button is intentionally LARGER via
-       font-size (1.25rem vs 1.05rem) so it reads as the hero CTA. */
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
     font-size: 1.25rem !important;
     font-weight: 900 !important;
@@ -191,7 +187,6 @@ button[data-testid="stBaseButton-primary"] {
     color: #fff !important;
     text-shadow: 0 2px 3px rgba(140, 34, 66, 0.35) !important;
 
-    /* Background + shadow */
     background:
         radial-gradient(circle at 25% 25%, #ffd0dd 0%, transparent 45%),
         radial-gradient(circle at 80% 80%, #ffa7c1 0%, transparent 50%),
@@ -202,7 +197,6 @@ button[data-testid="stBaseButton-primary"] {
         0 14px 26px rgba(255, 111, 145, 0.45),
         inset 0 2px 0 rgba(255, 255, 255, 0.4) !important;
 
-    /* Layout */
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -220,15 +214,7 @@ button[data-testid="stBaseButton-primary"] {
     filter: none !important;
 }
 
-/* --- Step 2b: Force the INNER button label (Streamlit wraps the
-   button text in a nested <div>/<p>/<span>). Streamlit's own stylesheet
-   applies font-weight: 400 + its own font-family + its own font-size
-   to that inner label, which overrides the button element's properties.
-   We mirror the exact typography of .ss-dl-link (family + weight +
-   tracking + stroke + shadow), and set font-size EXPLICITLY so
-   Streamlit's default (~14px) is not inherited by the label text —
-   without this the "Make My Story!" label renders much smaller than
-   the save chips despite the outer button's 1.25rem. --- */
+/* --- Step 2b: Force the inner button label typography --- */
 :is(
     button[kind="primary"],
     button[data-testid="baseButton-primary"],
@@ -258,14 +244,11 @@ button[data-testid="stBaseButton-primary"] {
     text-shadow: 0 2px 3px rgba(140, 34, 66, 0.35) !important;
 }
 
-/* Enabled cursor */
 button[kind="primary"]:not(:disabled),
 button[data-testid="baseButton-primary"]:not(:disabled),
 button[data-testid="stBaseButton-primary"]:not(:disabled) {
     cursor: pointer !important;
 }
-
-/* Disabled cursor */
 button[kind="primary"]:disabled,
 button[data-testid="baseButton-primary"]:disabled,
 button[data-testid="stBaseButton-primary"]:disabled {
@@ -293,7 +276,7 @@ button[data-testid="stBaseButton-primary"]::before {
     opacity: 1 !important;
 }
 
-/* --- Step 4: Shimmer — SAME in enabled + disabled (critical!) --- */
+/* --- Step 4: Shimmer — SAME in enabled + disabled --- */
 button[kind="primary"]::after,
 button[data-testid="baseButton-primary"]::after,
 button[data-testid="stBaseButton-primary"]::after {
@@ -325,9 +308,7 @@ button[data-testid="stBaseButton-primary"] > * {
     z-index: 2;
 }
 
-/* --- Step 5: Hover/active — visible feedback matching .ss-dl-link
-   Higher-specificity selector chain so this wins against Streamlit's
-   own injected :hover rules. */
+/* --- Step 5: Hover/active — feedback without position change --- */
 div[data-testid="stButton"] > button[kind="primary"]:not(:disabled):hover,
 div[data-testid="stButton"] > button[data-testid="baseButton-primary"]:not(:disabled):hover,
 div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:not(:disabled):hover,
@@ -337,15 +318,15 @@ div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:not(:di
 button[kind="primary"]:not(:disabled):hover,
 button[data-testid="baseButton-primary"]:not(:disabled):hover,
 button[data-testid="stBaseButton-primary"]:not(:disabled):hover {
-    transform: translateY(-2px) !important;
+    transform: none !important;
     margin: 0 auto !important;
     height: 62px !important;
     min-height: 62px !important;
     max-height: 62px !important;
     filter: brightness(1.06) saturate(1.05) !important;
     box-shadow:
-        0 7px 0 var(--coral-deep),
-        0 9px 0 var(--coral-deeper),
+        0 5px 0 var(--coral-deep),
+        0 7px 0 var(--coral-deeper),
         0 18px 32px rgba(255, 111, 145, 0.55),
         inset 0 2px 0 rgba(255, 255, 255, 0.5) !important;
 }
@@ -359,16 +340,16 @@ div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:not(:di
 button[kind="primary"]:not(:disabled):active,
 button[data-testid="baseButton-primary"]:not(:disabled):active,
 button[data-testid="stBaseButton-primary"]:not(:disabled):active {
-    transform: translateY(3px) !important;
+    transform: none !important;
     margin: 0 auto !important;
     height: 62px !important;
     min-height: 62px !important;
     max-height: 62px !important;
     filter: brightness(0.96) saturate(1.1) !important;
     box-shadow:
-        0 2px 0 var(--coral-deep),
-        0 4px 0 var(--coral-deeper),
-        0 6px 12px rgba(255, 111, 145, 0.4),
+        0 5px 0 var(--coral-deep),
+        0 7px 0 var(--coral-deeper),
+        0 10px 18px rgba(255, 111, 145, 0.4),
         inset 0 2px 0 rgba(255, 255, 255, 0.35) !important;
 }
 
@@ -405,7 +386,7 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
 }
 
 /* =================================================================
-   DOWNLOAD LINKS
+   DOWNLOAD LINKS — sky blue (voice) & coral (story)
    ================================================================= */
 .ss-dl-cell {
     display: flex !important;
@@ -421,11 +402,6 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
     justify-content: center !important;
     gap: 0.45rem !important;
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
-    /* Save buttons render at 1.05rem (intentionally SMALLER than the
-       1.25rem primary CTA) so the hero button reads as the biggest
-       element on the page. Baloo 2's rounded strokes look thinner at
-       smaller sizes, so we use weight 900 + a thin white text-stroke
-       to keep the visual heft close to the primary button. */
     font-size: 1.05rem !important;
     font-weight: 900 !important;
     letter-spacing: 0.015em !important;
@@ -447,10 +423,6 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
     cursor: pointer !important;
 }
 
-/* --- Force the inner label of save buttons too, so both buttons share
-   identical rendering regardless of Streamlit version. font-size is
-   set explicitly (matching .ss-dl-link) so any browser default on the
-   inner <span>/<div> cannot shrink the text. --- */
 .ss-dl-link *,
 .ss-dl-link span,
 .ss-dl-link div {
@@ -510,6 +482,14 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
     box-shadow: 0 1px 0 #b8325a, 0 3px 6px rgba(255, 111, 145, 0.35) !important;
 }
 
+.ss-dl-link[aria-disabled="true"] {
+    background: linear-gradient(180deg, #cfd3dc 0%, #9aa0ad 100%) !important;
+    box-shadow: 0 3px 0 #7a7f8a !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    opacity: 0.85 !important;
+}
+
 /* =================================================================
    STORY TEXT
    ================================================================= */
@@ -524,10 +504,6 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
     margin: 0.3rem 0 0.7rem;
     box-shadow: inset 0 0 0 2px rgba(255, 204, 51, 0.25);
     animation: fade-in 0.45s ease;
-}
-@keyframes fade-in {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0);   }
 }
 
 /* =================================================================
@@ -569,7 +545,7 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
 .stAudio audio { width: 100%; height: 44px; border-radius: 14px; }
 
 /* =================================================================
-   EMPTY STATE
+   EMPTY STATE — Ollie + guidance text
    ================================================================= */
 .page-empty {
     display: flex;
@@ -727,7 +703,7 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
 }
 
 /* =================================================================
-   PROGRESS
+   PROGRESS — inline 3D turning-book loader
    ================================================================= */
 .progress-inline {
     display: flex;
@@ -751,10 +727,6 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
     filter: drop-shadow(0 12px 20px rgba(255, 111, 145, 0.22));
     animation: book-breathe 3s ease-in-out infinite;
     transform-style: preserve-3d;
-}
-@keyframes book-breathe {
-    0%, 100% { transform: translateY(0)    rotate(-0.4deg); }
-    50%      { transform: translateY(-4px) rotate(0.4deg);  }
 }
 
 .turning-book .base {
@@ -833,32 +805,6 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
     z-index: 2;
     will-change: transform, box-shadow;
 }
-@keyframes turn-page {
-    0% {
-        transform: rotateY(0deg);
-        box-shadow:
-            0 4px 10px rgba(0, 0, 0, 0.10),
-            inset -8px 0 12px -10px rgba(0, 0, 0, 0.14);
-    }
-    45% {
-        transform: rotateY(-88deg);
-        box-shadow:
-            0 10px 20px rgba(0, 0, 0, 0.22),
-            inset -14px 0 20px -12px rgba(0, 0, 0, 0.22);
-    }
-    55% {
-        transform: rotateY(-92deg);
-        box-shadow:
-            0 10px 20px rgba(0, 0, 0, 0.22),
-            inset -14px 0 20px -12px rgba(0, 0, 0, 0.22);
-    }
-    100% {
-        transform: rotateY(-180deg);
-        box-shadow:
-            0 4px 10px rgba(0, 0, 0, 0.10),
-            inset 8px 0 12px -10px rgba(0, 0, 0, 0.14);
-    }
-}
 .turning-book .page .line {
     position: absolute;
     left: 10px;
@@ -896,33 +842,10 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
     transition: width 0.6s cubic-bezier(.4, 1.2, .6, 1);
     animation: shift 2s linear infinite;
 }
-@keyframes shift {
-    0%   { background-position: 0% 0%; }
-    100% { background-position: 200% 0%; }
-}
 .progress-inline .progress-text {
     font-size: 1.18rem;
     font-weight: 800;
     color: var(--ink);
-}
-.progress-inline .progress-text::after {
-    content: "";
-    display: inline-block;
-    width: 1.2em;
-    text-align: left;
-    animation: dots 1.4s steps(4, end) infinite;
-}
-@keyframes dots {
-    0%   { content: "";    }
-    25%  { content: ".";   }
-    50%  { content: "..";  }
-    75%  { content: "..."; }
-    100% { content: "";    }
-}
-
-@keyframes floaty {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(-10px); }
 }
 
 /* =================================================================
@@ -937,20 +860,9 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
      • REMOVE the current picture (the X button next to the filename)
      • click "Make My Story!"     (would re-fire the pipeline)
 
-   Why CSS instead of `st.button(..., disabled=True)` /
-   `st.file_uploader(..., disabled=True)`?
-
-     Streamlit swaps a disabled <button> for a different DOM node
-     (different testid, no tooltip wrapper) → a visible 1-2px
-     position shift on the magic button. CSS-only lockout keeps
-     the DOM identical → zero jitter.
-
-   Visual values mirror the existing `.stButton > button:disabled`
-   rule so the locked-out look matches the project's standard
-   disabled-button styling.
+   CSS-only lockout keeps the DOM identical → zero jitter on the
+   magic button (Streamlit's disabled attribute swap would move it).
    ================================================================= */
-
-/* --- File uploader: Browse files button, X clear button, dropzone --- */
 body:has(.progress-inline) [data-testid="stFileUploader"],
 body:has(.progress-inline) [data-testid="stFileUploader"] * {
     pointer-events: none !important;
@@ -968,9 +880,6 @@ body:has(.progress-inline) [data-testid="stFileUploader"] button {
     opacity: 1 !important;
 }
 
-/* --- Magic "Make My Story!" button -------------------------------
-   The locked geometry from the primary-button rules above stays
-   intact; we only override the "feel" properties. */
 body:has(.progress-inline) .stButton > button[kind="primary"],
 body:has(.progress-inline) .stButton > button[data-testid="baseButton-primary"],
 body:has(.progress-inline) .stButton > button[data-testid="stBaseButton-primary"] {

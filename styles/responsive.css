@@ -11,12 +11,12 @@
     .title-main { font-size: 2.2rem; }
     .title-sub  { font-size: 1rem; }
 
-    /* Reduce the top margin so contents sit a bit higher on mobile
-       too, matching the desktop layout. */
+    /* Reduce the top margin so contents sit a bit higher on mobile. */
     [data-testid="stHorizontalBlock"] {
         margin-top: 0.4rem !important;
     }
 
+    /* --- Columns stack full-width --- */
     [data-testid="column"],
     [data-testid="stColumn"],
     section[data-testid="stColumn"] {
@@ -32,6 +32,7 @@
         padding: 0 !important;
     }
 
+    /* --- Typography and spacing tweaks --- */
     .page-heading { font-size: 1.25rem; }
     .story-text   { font-size: 1.1rem; }
     .float        { font-size: 2rem; opacity: 0.4; }
@@ -46,7 +47,7 @@
         margin: 0.15rem 0 0 0 !important;
     }
 
-    /* Primary button — static, full-width on mobile, no animation. */
+    /* --- Primary button: static, full-width, no animation --- */
     :is(
         .stButton > button[kind="primary"],
         button[kind="primary"],
@@ -62,5 +63,47 @@
         animation: none !important;
         transform: none !important;
         transition: none !important;
+    }
+
+    /* Match the inner-label typography to the shrunk button so the
+       label renders at the same size as the mobile button. */
+    :is(
+        button[kind="primary"],
+        button[data-testid="baseButton-primary"],
+        button[data-testid="stBaseButton-primary"]
+    ) *,
+    :is(
+        button[kind="primary"],
+        button[data-testid="baseButton-primary"],
+        button[data-testid="stBaseButton-primary"]
+    ) p,
+    :is(
+        button[kind="primary"],
+        button[data-testid="baseButton-primary"],
+        button[data-testid="stBaseButton-primary"]
+    ) span,
+    :is(
+        button[kind="primary"],
+        button[data-testid="baseButton-primary"],
+        button[data-testid="stBaseButton-primary"]
+    ) div {
+        font-size: 1.1rem !important;
+    }
+
+    /* Hover/active on mobile must not shift the button either. */
+    :is(
+        button[kind="primary"],
+        button[data-testid="baseButton-primary"],
+        button[data-testid="stBaseButton-primary"]
+    ):not(:disabled):hover,
+    :is(
+        button[kind="primary"],
+        button[data-testid="baseButton-primary"],
+        button[data-testid="stBaseButton-primary"]
+    ):not(:disabled):active {
+        height: 54px !important;
+        min-height: 54px !important;
+        max-height: 54px !important;
+        transform: none !important;
     }
 }

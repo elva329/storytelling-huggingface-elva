@@ -180,7 +180,9 @@ button[data-testid="stBaseButton-primary"] {
     border-radius: 999px !important;
     border: 4px solid #ffffff !important;
 
-    /* Typography — matches .ss-dl-link (save buttons). */
+    /* Typography — matches .ss-dl-link (save buttons) in family, weight,
+       tracking, stroke. The primary button is intentionally LARGER via
+       font-size (1.25rem vs 1.05rem) so it reads as the hero CTA. */
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
     font-size: 1.25rem !important;
     font-weight: 900 !important;
@@ -220,10 +222,13 @@ button[data-testid="stBaseButton-primary"] {
 
 /* --- Step 2b: Force the INNER button label (Streamlit wraps the
    button text in a nested <div>/<p>/<span>). Streamlit's own stylesheet
-   applies font-weight: 400 + its own font-family to that inner label,
-   which overrides the button element's properties. We mirror the exact
-   typography of .ss-dl-link so the CTA label and the save-chip labels
-   render identically. --- */
+   applies font-weight: 400 + its own font-family + its own font-size
+   to that inner label, which overrides the button element's properties.
+   We mirror the exact typography of .ss-dl-link (family + weight +
+   tracking + stroke + shadow), and set font-size EXPLICITLY so
+   Streamlit's default (~14px) is not inherited by the label text —
+   without this the "Make My Story!" label renders much smaller than
+   the save chips despite the outer button's 1.25rem. --- */
 :is(
     button[kind="primary"],
     button[data-testid="baseButton-primary"],
@@ -246,6 +251,7 @@ button[data-testid="stBaseButton-primary"] {
 ) div {
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
     font-weight: 900 !important;
+    font-size: 1.25rem !important;
     letter-spacing: 0.015em !important;
     -webkit-text-stroke: 0.35px rgba(255, 255, 255, 0.55) !important;
     color: #fff !important;
@@ -266,7 +272,7 @@ button[data-testid="stBaseButton-primary"]:disabled {
     cursor: not-allowed !important;
 }
 
-/* --- Step 3: Wand icon --- */
+/* --- Step 3: Wand icon — identical in both states --- */
 button[kind="primary"]::before,
 button[data-testid="baseButton-primary"]::before,
 button[data-testid="stBaseButton-primary"]::before {
@@ -287,7 +293,7 @@ button[data-testid="stBaseButton-primary"]::before {
     opacity: 1 !important;
 }
 
-/* --- Step 4: Shimmer --- */
+/* --- Step 4: Shimmer — SAME in enabled + disabled (critical!) --- */
 button[kind="primary"]::after,
 button[data-testid="baseButton-primary"]::after,
 button[data-testid="stBaseButton-primary"]::after {
@@ -319,7 +325,9 @@ button[data-testid="stBaseButton-primary"] > * {
     z-index: 2;
 }
 
-/* --- Step 5: Hover/active --- */
+/* --- Step 5: Hover/active — visible feedback matching .ss-dl-link
+   Higher-specificity selector chain so this wins against Streamlit's
+   own injected :hover rules. */
 div[data-testid="stButton"] > button[kind="primary"]:not(:disabled):hover,
 div[data-testid="stButton"] > button[data-testid="baseButton-primary"]:not(:disabled):hover,
 div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"]:not(:disabled):hover,
@@ -371,7 +379,7 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
     outline-offset: 5px !important;
 }
 
-/* --- Step 6: Sparkles --- */
+/* --- Step 6: Sparkles around the wrapper — decoration only --- */
 .stButton:has(button[kind="primary"])::before,
 .stButton:has(button[kind="primary"])::after {
     content: "";
@@ -413,6 +421,11 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
     justify-content: center !important;
     gap: 0.45rem !important;
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
+    /* Save buttons render at 1.05rem (intentionally SMALLER than the
+       1.25rem primary CTA) so the hero button reads as the biggest
+       element on the page. Baloo 2's rounded strokes look thinner at
+       smaller sizes, so we use weight 900 + a thin white text-stroke
+       to keep the visual heft close to the primary button. */
     font-size: 1.05rem !important;
     font-weight: 900 !important;
     letter-spacing: 0.015em !important;
@@ -434,13 +447,16 @@ button[data-testid="stBaseButton-primary"]:focus-visible {
     cursor: pointer !important;
 }
 
-/* --- Force the inner label of save buttons too, so both buttons
-   share identical rendering regardless of Streamlit version. --- */
+/* --- Force the inner label of save buttons too, so both buttons share
+   identical rendering regardless of Streamlit version. font-size is
+   set explicitly (matching .ss-dl-link) so any browser default on the
+   inner <span>/<div> cannot shrink the text. --- */
 .ss-dl-link *,
 .ss-dl-link span,
 .ss-dl-link div {
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
     font-weight: 900 !important;
+    font-size: 1.05rem !important;
     letter-spacing: 0.015em !important;
     -webkit-text-stroke: 0.35px rgba(255, 255, 255, 0.55) !important;
     color: #fff !important;

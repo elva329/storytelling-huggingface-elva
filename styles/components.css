@@ -6,8 +6,7 @@
    ========================================================================== */
 
 /* =================================================================
-   QUEST PATH — 3-step adventure with progress states
-   (rendered ONLY in the empty state; disappears after upload)
+   QUEST PATH
    ================================================================= */
 .quest-path {
     display: flex;
@@ -100,7 +99,7 @@
 }
 
 /* =================================================================
-   DEFAULT BUTTONS
+   DEFAULT BUTTONS (green) — applies to all non-primary buttons
    ================================================================= */
 .stButton > button {
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
@@ -139,78 +138,60 @@
 }
 
 /* =================================================================
-   PRIMARY MAGIC BUTTON — completely static
+   PRIMARY MAGIC BUTTON — the definitive, conflict-free version
    -----------------------------------------------------------------
-   The button never animates, never transforms, and never changes
-   position on hover or click. The :disabled rule is byte-for-byte
-   identical to the enabled rule, so when Streamlit swaps the
-   button into disabled on click, nothing visually shifts.
+   Strategy:
+   1. Lock the OUTER wrapper (div[data-testid="stButton"]) to a fixed
+      height, width, and margin. This is the box Streamlit swaps when
+      the button goes from enabled → disabled.
+   2. Lock the BUTTON itself to identical geometry in :enabled AND
+      :disabled states using a single shared declaration block.
+   3. Never use `content: none` on ::after in the disabled state —
+      keep the shimmer identical so nothing changes.
+   4. Use `!important` on ALL geometric properties so no Streamlit
+      default or later-loaded stylesheet can override them.
    ================================================================= */
-.stButton:has(button[kind="primary"]),
-.stButton:has(button[data-testid="baseButton-primary"]),
-.stButton:has(button[data-testid="stBaseButton-primary"]) {
+
+/* --- Step 1: Outer wrapper — fixed box, centered, never changes --- */
+div[data-testid="stButton"]:has(button[kind="primary"]),
+div[data-testid="stButton"]:has(button[data-testid="baseButton-primary"]),
+div[data-testid="stButton"]:has(button[data-testid="stBaseButton-primary"]),
+div[data-testid="stButton"]:has(button[data-testid*="primary"]) {
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
     width: 100% !important;
-    margin: 1rem 0 0.5rem;
-    position: relative;
+    height: 62px !important;
+    min-height: 62px !important;
+    max-height: 62px !important;
+    margin: 1rem 0 0.5rem !important;
+    padding: 0 !important;
+    position: relative !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
 }
 
-.stButton:has(button[kind="primary"]) [data-testid="stButton"],
-.stButton:has(button[data-testid="baseButton-primary"]) [data-testid="stButton"] {
-    width: auto !important;
-    display: inline-block !important;
-    position: relative;
-}
-
-/* Sparkles floating around the button — decoration only. */
-.stButton:has(button[kind="primary"])::before,
-.stButton:has(button[kind="primary"])::after,
-.stButton:has(button[data-testid="baseButton-primary"])::before,
-.stButton:has(button[data-testid="baseButton-primary"])::after {
-    content: "";
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    background: radial-gradient(circle,
-        #fff2a8 0%, #ffcc33 40%, transparent 70%);
-    border-radius: 50%;
-    pointer-events: none;
-    animation: sparkle-orbit 3s ease-in-out infinite;
-    z-index: 3;
-}
-.stButton:has(button[kind="primary"])::before,
-.stButton:has(button[data-testid="baseButton-primary"])::before {
-    top: -6px;
-    left: 12%;
-    animation-delay: 0s;
-}
-.stButton:has(button[kind="primary"])::after,
-.stButton:has(button[data-testid="baseButton-primary"])::after {
-    bottom: -6px;
-    right: 12%;
-    animation-delay: 1.5s;
-}
-
-/* The button itself — completely static, centered via auto margins. */
-:is(
-    .stButton > button[kind="primary"],
-    button[kind="primary"],
-    button[data-testid="baseButton-primary"],
-    button[data-testid="stBaseButton-primary"]
-) {
+/* --- Step 2: The button itself — identical enabled + disabled --- */
+div[data-testid="stButton"] > button[kind="primary"],
+div[data-testid="stButton"] > button[data-testid="baseButton-primary"],
+div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"],
+button[kind="primary"],
+button[data-testid="baseButton-primary"],
+button[data-testid="stBaseButton-primary"] {
+    /* Geometry — LOCKED with !important on every dimension */
+    box-sizing: border-box !important;
     width: auto !important;
     min-width: 260px !important;
     max-width: 92% !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    min-height: 62px !important;
     height: 62px !important;
+    min-height: 62px !important;
+    max-height: 62px !important;
     padding: 0 2rem !important;
+    margin: 0 auto !important;
     border-radius: 999px !important;
     border: 4px solid #ffffff !important;
 
+    /* Typography */
     font-family: 'Baloo 2', 'Fredoka', cursive !important;
     font-size: 1.25rem !important;
     font-weight: 900 !important;
@@ -218,39 +199,57 @@
     color: #fff !important;
     text-shadow: 0 2px 3px rgba(140, 34, 66, 0.35) !important;
 
+    /* Background + shadow */
     background:
         radial-gradient(circle at 25% 25%, #ffd0dd 0%, transparent 45%),
         radial-gradient(circle at 80% 80%, #ffa7c1 0%, transparent 50%),
         linear-gradient(180deg, #ff9bb4 0%, #ff6f91 45%, #e54a76 100%) !important;
-
     box-shadow:
         0 5px 0 var(--coral-deep),
         0 7px 0 var(--coral-deeper),
         0 14px 26px rgba(255, 111, 145, 0.45),
         inset 0 2px 0 rgba(255, 255, 255, 0.4) !important;
 
+    /* Layout */
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     gap: 0.7rem !important;
 
-    /* No animation, no transition, no transform. Ever. */
+    /* Kill ALL motion/transform — prevents any 1px jitter */
     animation: none !important;
     transform: none !important;
     transition: none !important;
-
     transform-origin: center;
+
     position: relative;
     overflow: hidden;
-    cursor: pointer;
+
+    /* Opacity/filter identical in both states */
+    opacity: 1 !important;
+    filter: none !important;
+
+    /* Cursor handled separately below */
 }
 
-:is(
-    .stButton > button[kind="primary"],
-    button[kind="primary"],
-    button[data-testid="baseButton-primary"],
-    button[data-testid="stBaseButton-primary"]
-)::before {
+/* Enabled cursor */
+button[kind="primary"]:not(:disabled),
+button[data-testid="baseButton-primary"]:not(:disabled),
+button[data-testid="stBaseButton-primary"]:not(:disabled) {
+    cursor: pointer !important;
+}
+
+/* Disabled cursor */
+button[kind="primary"]:disabled,
+button[data-testid="baseButton-primary"]:disabled,
+button[data-testid="stBaseButton-primary"]:disabled {
+    cursor: not-allowed !important;
+}
+
+/* --- Step 3: Wand icon — identical in both states --- */
+button[kind="primary"]::before,
+button[data-testid="baseButton-primary"]::before,
+button[data-testid="stBaseButton-primary"]::before {
     content: "" !important;
     display: inline-block !important;
     width: 30px !important;
@@ -265,15 +264,13 @@
     box-shadow:
         inset 0 0 0 2px rgba(255, 255, 255, 0.6),
         0 2px 6px rgba(184, 50, 90, 0.35);
+    opacity: 1 !important;
 }
 
-/* Shimmer sweep — decorative only, on the ::after pseudo. */
-:is(
-    .stButton > button[kind="primary"],
-    button[kind="primary"],
-    button[data-testid="baseButton-primary"],
-    button[data-testid="stBaseButton-primary"]
-)::after {
+/* --- Step 4: Shimmer — SAME in enabled + disabled (critical!) --- */
+button[kind="primary"]::after,
+button[data-testid="baseButton-primary"]::after,
+button[data-testid="stBaseButton-primary"]::after {
     content: "" !important;
     position: absolute;
     top: 0;
@@ -291,32 +288,29 @@
     animation: shimmer-sweep 3.6s ease-in-out infinite;
     pointer-events: none;
     z-index: 1;
+    display: block !important;
+    opacity: 1 !important;
 }
 
-:is(
-    .stButton > button[kind="primary"],
-    button[kind="primary"],
-    button[data-testid="baseButton-primary"],
-    button[data-testid="stBaseButton-primary"]
-) > * {
+button[kind="primary"] > *,
+button[data-testid="baseButton-primary"] > *,
+button[data-testid="stBaseButton-primary"] > * {
     position: relative;
     z-index: 2;
 }
 
-/* Hover and active: absolutely nothing changes on the button. */
-:is(
-    .stButton > button[kind="primary"],
-    button[kind="primary"],
-    button[data-testid="baseButton-primary"],
-    button[data-testid="stBaseButton-primary"]
-):not(:disabled):hover,
-:is(
-    .stButton > button[kind="primary"],
-    button[kind="primary"],
-    button[data-testid="baseButton-primary"],
-    button[data-testid="stBaseButton-primary"]
-):not(:disabled):active {
+/* --- Step 5: Hover/active — no geometry change at all --- */
+button[kind="primary"]:not(:disabled):hover,
+button[kind="primary"]:not(:disabled):active,
+button[data-testid="baseButton-primary"]:not(:disabled):hover,
+button[data-testid="baseButton-primary"]:not(:disabled):active,
+button[data-testid="stBaseButton-primary"]:not(:disabled):hover,
+button[data-testid="stBaseButton-primary"]:not(:disabled):active {
     transform: none !important;
+    margin: 0 auto !important;
+    height: 62px !important;
+    min-height: 62px !important;
+    max-height: 62px !important;
     box-shadow:
         0 5px 0 var(--coral-deep),
         0 7px 0 var(--coral-deeper),
@@ -324,91 +318,40 @@
         inset 0 2px 0 rgba(255, 255, 255, 0.4) !important;
 }
 
-:is(
-    .stButton > button[kind="primary"],
-    button[kind="primary"],
-    button[data-testid="baseButton-primary"],
-    button[data-testid="stBaseButton-primary"]
-):focus-visible {
+button[kind="primary"]:focus-visible,
+button[data-testid="baseButton-primary"]:focus-visible,
+button[data-testid="stBaseButton-primary"]:focus-visible {
     outline: 4px dashed var(--sunny) !important;
     outline-offset: 5px !important;
 }
 
-/* Disabled state — byte-for-byte identical to the enabled state,
-   so the button does not visually shift when Streamlit swaps it
-   into disabled on click. */
-:is(
-    .stButton > button[kind="primary"],
-    button[kind="primary"],
-    button[data-testid="baseButton-primary"],
-    button[data-testid="stBaseButton-primary"]
-):disabled {
-    width: auto !important;
-    min-width: 260px !important;
-    max-width: 92% !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    min-height: 62px !important;
-    height: 62px !important;
-    padding: 0 2rem !important;
-    border-radius: 999px !important;
-    border: 4px solid #ffffff !important;
-
-    font-family: 'Baloo 2', 'Fredoka', cursive !important;
-    font-size: 1.25rem !important;
-    font-weight: 900 !important;
-    letter-spacing: 0.03em !important;
-    color: #fff !important;
-    text-shadow: 0 2px 3px rgba(140, 34, 66, 0.35) !important;
-
-    background:
-        radial-gradient(circle at 25% 25%, #ffd0dd 0%, transparent 45%),
-        radial-gradient(circle at 80% 80%, #ffa7c1 0%, transparent 50%),
-        linear-gradient(180deg, #ff9bb4 0%, #ff6f91 45%, #e54a76 100%) !important;
-
-    box-shadow:
-        0 5px 0 var(--coral-deep),
-        0 7px 0 var(--coral-deeper),
-        0 14px 26px rgba(255, 111, 145, 0.45),
-        inset 0 2px 0 rgba(255, 255, 255, 0.4) !important;
-
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 0.7rem !important;
-
-    opacity: 1 !important;
-    filter: none !important;
-    cursor: not-allowed !important;
-    animation: none !important;
-    transform: none !important;
-    transition: none !important;
+/* --- Step 6: Sparkles around the wrapper — decoration only --- */
+.stButton:has(button[kind="primary"])::before,
+.stButton:has(button[kind="primary"])::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: radial-gradient(circle,
+        #fff2a8 0%, #ffcc33 40%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: sparkle-orbit 3s ease-in-out infinite;
+    z-index: 3;
 }
-
-:is(
-    .stButton > button[kind="primary"],
-    button[kind="primary"],
-    button[data-testid="baseButton-primary"],
-    button[data-testid="stBaseButton-primary"]
-):disabled::before {
-    /* Same wand icon as the enabled state — no dimming. */
-    opacity: 1 !important;
+.stButton:has(button[kind="primary"])::before {
+    top: -6px;
+    left: 12%;
+    animation-delay: 0s;
 }
-
-:is(
-    .stButton > button[kind="primary"],
-    button[kind="primary"],
-    button[data-testid="baseButton-primary"],
-    button[data-testid="stBaseButton-primary"]
-):disabled::after {
-    content: none !important;
+.stButton:has(button[kind="primary"])::after {
+    bottom: -6px;
+    right: 12%;
+    animation-delay: 1.5s;
 }
 
 /* =================================================================
-   DOWNLOAD LINKS — sky blue (voice) & coral (story)
-   -----------------------------------------------------------------
-   Tight top margin (0.15rem) pulls the Save buttons closer to the
-   audio player directly above them.
+   DOWNLOAD LINKS
    ================================================================= */
 .ss-dl-cell {
     display: flex !important;
@@ -490,14 +433,6 @@
     box-shadow: 0 1px 0 #b8325a, 0 3px 6px rgba(255, 111, 145, 0.35) !important;
 }
 
-.ss-dl-link[aria-disabled="true"] {
-    background: linear-gradient(180deg, #cfd3dc 0%, #9aa0ad 100%) !important;
-    box-shadow: 0 3px 0 #7a7f8a !important;
-    cursor: not-allowed !important;
-    pointer-events: none !important;
-    opacity: 0.85 !important;
-}
-
 /* =================================================================
    STORY TEXT
    ================================================================= */
@@ -568,14 +503,6 @@
     min-height: 58vh;
     padding: 1rem 1rem 2rem;
     background: transparent;
-}
-
-.guide-emoji {
-    font-size: 5rem;
-    line-height: 1;
-    animation: guide-bob 3s ease-in-out infinite;
-    filter: drop-shadow(0 8px 12px rgba(255, 111, 145, 0.25));
-    margin-bottom: 1.2rem;
 }
 
 .story-guide {
@@ -678,15 +605,14 @@
 .guide-bubble::before {
     content: "";
     position: absolute;
-    top: -12px;
+    top: -10px;
     left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 10px solid transparent;
-    border-right: 10px solid transparent;
-    border-bottom: 12px solid #ffffff;
-    filter: drop-shadow(0 -1px 0 rgba(255, 111, 145, 0.06));
+    transform: translateX(-50%) rotate(45deg);
+    width: 18px;
+    height: 18px;
+    background: #ffffff;
+    box-shadow: -2px -2px 4px rgba(255, 111, 145, 0.06);
+    border-radius: 2px;
 }
 .guide-greet {
     display: block;
@@ -724,22 +650,200 @@
 }
 
 /* =================================================================
-   HARD CENTERING — MAKE MY STORY BUTTON
-   -----------------------------------------------------------------
-   Streamlit wraps every st.button() in a div with
-   data-testid="stButton". That wrapper collapses to content width
-   by default, which pushes the button to the left edge of its
-   column. We force that wrapper full-width and center its child.
-   This targets the actual DOM element (not the .stButton class),
-   so it works regardless of how Streamlit nests its wrappers.
+   PROGRESS
    ================================================================= */
-div[data-testid="stButton"] {
-    display: flex !important;
-    justify-content: center !important;
-    width: 100% !important;
+.progress-inline {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 58vh;
+    text-align: center;
+    font-family: 'Baloo 2', cursive;
+    padding: 1rem;
+    animation: fade-in 0.25s ease;
 }
 
-div[data-testid="stButton"] > button {
-    margin-left: auto !important;
-    margin-right: auto !important;
+.turning-book {
+    position: relative;
+    width: 150px;
+    height: 100px;
+    margin-bottom: 1.6rem;
+    perspective: 800px;
+    perspective-origin: 50% 50%;
+    filter: drop-shadow(0 12px 20px rgba(255, 111, 145, 0.22));
+    animation: book-breathe 3s ease-in-out infinite;
+    transform-style: preserve-3d;
+}
+@keyframes book-breathe {
+    0%, 100% { transform: translateY(0)    rotate(-0.4deg); }
+    50%      { transform: translateY(-4px) rotate(0.4deg);  }
+}
+
+.turning-book .base {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    z-index: 1;
+}
+.turning-book .base .left,
+.turning-book .base .right {
+    flex: 1;
+    border: 3px solid var(--coral);
+    background: linear-gradient(180deg, #fffdf6 0%, #ffe9f1 100%);
+    box-shadow:
+        inset 0 -12px 18px -12px rgba(0, 0, 0, 0.10),
+        0 2px 4px rgba(0, 0, 0, 0.06);
+}
+.turning-book .base .left {
+    border-radius: 12px 3px 3px 12px;
+    border-right: none;
+    background: linear-gradient(180deg, #e6f6ff 0%, #fffdf6 100%);
+    border-color: var(--sky);
+    position: relative;
+}
+.turning-book .base .right {
+    border-radius: 3px 12px 12px 3px;
+    border-left: none;
+}
+.turning-book .base .left::before {
+    content: "";
+    position: absolute;
+    top: 22px;
+    left: 14px;
+    width: 44px;
+    height: 3px;
+    background: rgba(89, 200, 255, 0.40);
+    border-radius: 2px;
+    box-shadow:
+        0 14px 0 rgba(89, 200, 255, 0.40),
+        0 28px 0 rgba(89, 200, 255, 0.40),
+        0 42px 0 rgba(89, 200, 255, 0.40);
+}
+.turning-book .spine {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 50%;
+    width: 8px;
+    transform: translateX(-50%);
+    background: linear-gradient(90deg,
+        rgba(0, 0, 0, 0.05) 0%,
+        rgba(0, 0, 0, 0.28) 50%,
+        rgba(0, 0, 0, 0.05) 100%);
+    border-radius: 50%;
+    filter: blur(0.6px);
+    z-index: 3;
+    pointer-events: none;
+}
+.turning-book .page {
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    width: 72px;
+    height: 94px;
+    background: linear-gradient(180deg, #ffffff 0%, #fff4f8 100%);
+    border: 3px solid var(--coral);
+    border-left: none;
+    border-radius: 3px 12px 12px 3px;
+    transform-origin: left center;
+    transform-style: preserve-3d;
+    backface-visibility: visible;
+    box-shadow:
+        0 4px 10px rgba(0, 0, 0, 0.10),
+        inset -8px 0 12px -10px rgba(0, 0, 0, 0.14);
+    animation: turn-page 2.4s cubic-bezier(.65, .05, .36, 1) infinite;
+    z-index: 2;
+    will-change: transform, box-shadow;
+}
+@keyframes turn-page {
+    0% {
+        transform: rotateY(0deg);
+        box-shadow:
+            0 4px 10px rgba(0, 0, 0, 0.10),
+            inset -8px 0 12px -10px rgba(0, 0, 0, 0.14);
+    }
+    45% {
+        transform: rotateY(-88deg);
+        box-shadow:
+            0 10px 20px rgba(0, 0, 0, 0.22),
+            inset -14px 0 20px -12px rgba(0, 0, 0, 0.22);
+    }
+    55% {
+        transform: rotateY(-92deg);
+        box-shadow:
+            0 10px 20px rgba(0, 0, 0, 0.22),
+            inset -14px 0 20px -12px rgba(0, 0, 0, 0.22);
+    }
+    100% {
+        transform: rotateY(-180deg);
+        box-shadow:
+            0 4px 10px rgba(0, 0, 0, 0.10),
+            inset 8px 0 12px -10px rgba(0, 0, 0, 0.14);
+    }
+}
+.turning-book .page .line {
+    position: absolute;
+    left: 10px;
+    height: 3px;
+    background: rgba(255, 111, 145, 0.38);
+    border-radius: 2px;
+}
+.turning-book .page .line.l1 { top: 18px; width: 48px; }
+.turning-book .page .line.l2 { top: 34px; width: 40px; }
+.turning-book .page .line.l3 { top: 50px; width: 52px; }
+.turning-book .page .line.l4 { top: 66px; width: 34px; }
+
+.progress-inline .progress-emoji {
+    font-size: 2.6rem;
+    line-height: 1;
+    animation: floaty 1.4s ease-in-out infinite;
+    margin-bottom: 0.4rem;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.08));
+}
+.progress-inline .progress-bar {
+    width: min(340px, 72vw);
+    height: 16px;
+    background: #ffe8f0;
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 0.9rem 0 0.7rem;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+.progress-inline .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg,
+        var(--coral), var(--sunny), var(--grass), var(--sky));
+    background-size: 200% 100%;
+    border-radius: 999px;
+    transition: width 0.6s cubic-bezier(.4, 1.2, .6, 1);
+    animation: shift 2s linear infinite;
+}
+@keyframes shift {
+    0%   { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+}
+.progress-inline .progress-text {
+    font-size: 1.18rem;
+    font-weight: 800;
+    color: var(--ink);
+}
+.progress-inline .progress-text::after {
+    content: "";
+    display: inline-block;
+    width: 1.2em;
+    text-align: left;
+    animation: dots 1.4s steps(4, end) infinite;
+}
+@keyframes dots {
+    0%   { content: "";    }
+    25%  { content: ".";   }
+    50%  { content: "..";  }
+    75%  { content: "..."; }
+    100% { content: "";    }
+}
+
+@keyframes floaty {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
 }

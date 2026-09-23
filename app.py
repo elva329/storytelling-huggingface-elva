@@ -953,14 +953,13 @@ def render_upload_page() -> tuple[Any, bool]:
 
     st.image(preview_image, use_container_width=True)
 
-    if st.session_state.phase == "working":
-        _html(
-            '<style>[data-testid="stFileUploader"]'
-            '{pointer-events:none;opacity:0.55;}</style>'
-        )
-
-    # Center the button below the uploaded image using a 3-column layout.
-    # The center column is wider so the button has room to breathe.
+    # NOTE: we deliberately do NOT disable the button while phase ==
+    # "working". Streamlit swaps a disabled <button> for a different
+    # DOM node (different data-testid, no tooltip wrapper), which
+    # causes a visible 1-2px position shift. Instead we keep the
+    # button enabled and rely on the pipeline guard below — a click
+    # while phase == "working" is a harmless no-op because
+    # _run_story_pipeline only transitions out of "idle".
     _left, _center, _right = st.columns([1, 4, 1])
     with _center:
         make_story = st.button(
@@ -968,15 +967,9 @@ def render_upload_page() -> tuple[Any, bool]:
             type="primary",
             help="Tap to make a story from your picture ✨",
             key="make_story_btn",
-            disabled=(st.session_state.phase == "working"),
         )
 
     # Happy-path return: the file is valid and the button is on screen.
-    # Returning (uploaded, make_story) lets the caller in main() unpack
-    # the result and forward the button-click into _run_story_pipeline.
-    # Without this, the function would fall off the end and implicitly
-    # return None, which would crash the `uploaded, make_story = ...`
-    # unpacking in main().
     return uploaded, make_story
 
 

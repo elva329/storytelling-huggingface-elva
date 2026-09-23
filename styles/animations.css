@@ -302,7 +302,7 @@
    sparkles orbiting the wrapper, and a shimmer sweep on the
    button's ::after pseudo-element.
    ================================================================= */
-@keyframes sparkle-orbit {
+/* @keyframes sparkle-orbit {
     0%, 100% { transform: scale(0.6) translateY(0);    opacity: 0.4; }
     50%      { transform: scale(1.2) translateY(-8px); opacity: 1;   }
 }
@@ -311,7 +311,7 @@
     0%   { left: -75%; }
     40%  { left: 120%; }
     100% { left: 120%; }
-}
+} */
 
 /* =================================================================
    REDUCED MOTION

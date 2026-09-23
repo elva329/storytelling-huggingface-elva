@@ -131,10 +131,12 @@ section[data-testid="stColumn"] {
 /* =================================================================
    RAINBOW TITLE
    ================================================================= */
+
 .title {
     text-align: center;
     padding: 0 0 0.4rem;
-    margin-top: -1.2rem;
+    margin-top: -2rem;
+    margin-bottom: 1rem;
     position: relative;
     z-index: 2;
 }

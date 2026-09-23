@@ -8,13 +8,9 @@
 
 StorySpark turns any picture into a short, 50–100-word bedtime story that the app then reads aloud. Built with Hugging Face Transformers and Streamlit, designed for ages 3–10.
 
----
-
 ## 🎯 Objective
 
 Build a Python storytelling app that (1) accepts an uploaded image, (2) generates a 50–100-word narrative from it, (3) converts the story to audio, and (4) runs as an interactive Streamlit app deployable on Streamlit Cloud.
-
----
 
 ## ✨ Features
 
@@ -24,8 +20,6 @@ Build a Python storytelling app that (1) accepts an uploaded image, (2) generate
 - Text-to-speech playback (gTTS)
 - Download links for both story (`.txt`) and voice (`.mp3`)
 - Kid-friendly UI: rainbow title, big buttons, animated loader, Ollie the Story Owl guide
-
----
 
 ## 🛠 Technologies
 
@@ -38,7 +32,6 @@ Build a Python storytelling app that (1) accepts an uploaded image, (2) generate
 | Images | Pillow |
 | Runtime | PyTorch, Python 3.10+ |
 
----
 
 ## 🤗 Models Used
 
@@ -48,7 +41,6 @@ Build a Python storytelling app that (1) accepts an uploaded image, (2) generate
 | `roneneldan/TinyStories-33M` | Caption → story (primary) |
 | `distilgpt2` | Caption → story (fallback) |
 
----
 
 ## 🔄 Pipeline
 
@@ -58,7 +50,6 @@ Build a Python storytelling app that (1) accepts an uploaded image, (2) generate
 
 **3. Story → Audio.** Emojis and quotes are stripped, then gTTS produces MP3 bytes rendered in an HTML5 player. If TTS fails, the story still shows.
 
----
 
 ## 🗂 Folder Structure
 
@@ -77,8 +68,6 @@ Build a Python storytelling app that (1) accepts an uploaded image, (2) generate
     └── responsive.css
 ```
 
----
-
 ## 💻 Install & Run Locally
 
 Requires Python 3.10+.
@@ -92,7 +81,6 @@ streamlit run app.py
 
 Open <http://localhost:8501>. First run downloads ~1.2 GB of models to `~/.cache/huggingface`; later runs start in seconds.
 
----
 
 ## ☁️ Deploy on Streamlit Cloud
 
@@ -104,7 +92,6 @@ Open <http://localhost:8501>. First run downloads ~1.2 GB of models to `~/.cache
 
 Cold start takes 60–180 s while models download. Paste the resulting URL into the placeholder at the top of this file.
 
----
 
 ## 🧪 Testing
 
@@ -112,7 +99,6 @@ Manual smoke test: upload a photo with a clear subject → click **Make My Story
 
 Edge cases to check: corrupt image, oversized file, offline mode, removing the upload mid-story.
 
----
 
 ## 🛡 Child-Safety Decisions
 

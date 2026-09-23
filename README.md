@@ -1,125 +1,123 @@
-# Fix 1 of 14 — Apply now
-
-**File:** `README.md`
-**Action:** Replace the entire file contents with the version below.
-
-```markdown
 # 📖 StorySpark — A Storytelling App for Kids (ages 3–10)
 
-> ISOM5240 Deep Learning Business Applications with Python — Individual Assignment
-> Author: Elva
+> **Course:** ISOM5240 — Deep Learning Business Applications with Python
+> **Assignment:** Individual Assignment
+> **Author:** Elva
 
-**Live app:** https://storytelling-huggingface-elva.streamlit.app/
+**Live app:** `https://storytelling-huggingface-elva.streamlit.app/`
 
-StorySpark turns any picture into a short, 50–100-word bedtime story
-that the app then reads aloud. Built with Hugging Face Transformers
-pipelines and a friendly Streamlit UI designed for little hands and
-big imaginations. 🌈
+StorySpark turns any picture into a short, 50–100-word bedtime story that the app then reads aloud. Built with Hugging Face Transformers and Streamlit, designed for ages 3–10.
+
+---
+
+## 🎯 Objective
+
+Build a Python storytelling app that (1) accepts an uploaded image, (2) generates a 50–100-word narrative from it, (3) converts the story to audio, and (4) runs as an interactive Streamlit app deployable on Streamlit Cloud.
 
 ---
 
 ## ✨ Features
 
-| Step | What it does                  | Technology                                                   |
-| ---- | ----------------------------- | ------------------------------------------------------------ |
-| 1    | Understands an uploaded image | `Salesforce/blip-image-captioning-base` (image-to-text)      |
-| 2    | Turns the caption into a tale | `roneneldan/TinyStories-33M` (fallback: `distilgpt2`)         |
-| 3    | Reads the story out loud      | `gTTS` (Google Text-to-Speech → MP3)                          |
-| 4    | Lets you save both outputs    | Two download links (voice MP3 + story TXT)                    |
-
-Kid-friendly touches: big rounded buttons, a rainbow title, an
-animated turning-book loader while the story is being written, and
-Ollie the Story Owl as the empty-state guide.
+- Upload a picture (PNG / JPG / WEBP, ≤ 25 MB)
+- Automatic image captioning (BLIP)
+- 50–100-word story generation (TinyStories)
+- Text-to-speech playback (gTTS)
+- Download links for both story (`.txt`) and voice (`.mp3`)
+- Kid-friendly UI: rainbow title, big buttons, animated loader, Ollie the Story Owl guide
 
 ---
 
-## 🗂 Project layout
+## 🛠 Technologies
+
+| Layer | Tool |
+|---|---|
+| UI | Streamlit + custom CSS |
+| Captioning | Hugging Face `pipeline("image-to-text")` |
+| Story generation | Hugging Face `pipeline("text-generation")` |
+| Speech | gTTS |
+| Images | Pillow |
+| Runtime | PyTorch, Python 3.10+ |
+
+---
+
+## 🤗 Models Used
+
+| Model | Task |
+|---|---|
+| `Salesforce/blip-image-captioning-base` | Image → caption |
+| `roneneldan/TinyStories-33M` | Caption → story (primary) |
+| `distilgpt2` | Caption → story (fallback) |
+
+---
+
+## 🔄 Pipeline
+
+**1. Image → Caption.** Uploaded image is validated, converted to RGB, and passed to BLIP. Returns one line (e.g. *"a brown puppy playing in grass"*).
+
+**2. Caption → Story.** The caption's leading article is stripped, a model-specific prompt is built, and the generator runs with sampling. Output is cleaned (emoji/quote strip, ragged-ending repair) and trimmed to ≤ 100 words. Every word comes from the model — no hard-coded sentences are appended.
+
+**3. Story → Audio.** Emojis and quotes are stripped, then gTTS produces MP3 bytes rendered in an HTML5 player. If TTS fails, the story still shows.
+
+---
+
+## 🗂 Folder Structure
 
 ```
 .
-├── app.py                    # Main Streamlit application
-├── constants.py              # Kid-safety blocklist + text-cleanup regexes
-├── requirements.txt          # Python dependencies
-├── runtime.txt               # Pins the Python version for Streamlit Cloud
+├── app.py
+├── constants.py
+├── requirements.txt
+├── README.md
 ├── .streamlit/
-│   └── config.toml           # Theme + upload-size config
-├── styles/
-│   ├── style.css             # Page layout + chrome
-│   ├── components.css        # Widget rules
-│   ├── animations.css        # Every @keyframes
-│   └── responsive.css        # Media queries (loaded last)
-└── README.md
+│   └── config.toml
+└── styles/
+    ├── style.css
+    ├── components.css
+    ├── animations.css
+    └── responsive.css
 ```
 
 ---
 
-## 🚀 Run locally
+## 💻 Install & Run Locally
+
+Requires Python 3.10+.
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate           # Windows: .venv\Scripts\activate
-
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The first launch downloads the two Hugging Face models (~1.2 GB total).
-After that they're cached in `~/.cache/huggingface`, so subsequent
-runs start in seconds. A warm-up step on the Streamlit side loads the
-models before the first user uploads a picture.
-
-Open <http://localhost:8501> and upload a picture to make your first story. 🎉
+Open <http://localhost:8501>. First run downloads ~1.2 GB of models to `~/.cache/huggingface`; later runs start in seconds.
 
 ---
 
-## ☁️ Deployment
+## ☁️ Deploy on Streamlit Cloud
 
-This app targets **Streamlit Community Cloud**.
+1. Push the project to a **public GitHub repo** (include `.streamlit/` and `styles/`).
+2. Sign in at <https://share.streamlit.io>.
+3. Click **New app**, select the repo, branch `main`, main file `app.py`.
+4. No secrets needed — all models are public.
+5. Click **Deploy**.
 
-1. Push this folder to a public GitHub repository.
-2. Sign in at <https://share.streamlit.io> with your GitHub account.
-3. Click **New app** → pick the repo, branch (`main`), and main file
-   (`app.py`).
-4. No secrets are required — every model used is public on the Hub.
-5. Hit **Deploy**.
-
-**Python version:** the app targets Python 3.11 (Streamlit Cloud's
-current default). It requires Python 3.10+ because `app.py` uses
-`X | Y` union syntax throughout.
+Cold start takes 60–180 s while models download. Paste the resulting URL into the placeholder at the top of this file.
 
 ---
 
-## 🧠 Models at a glance
+## 🧪 Testing
 
-| Model                                  | Task              | Why we picked it |
-| -------------------------------------- | ----------------- | ---------------- |
-| `Salesforce/blip-image-captioning-base`| Image captioning  | Suggested in the assignment; compact and produces friendly captions |
-| `roneneldan/TinyStories-33M`           | Story generation  | Trained on the TinyStories children's corpus — safe vocabulary |
-| `distilgpt2` (fallback)                | Story generation  | Backup if TinyStories is unreachable |
-| `gTTS`                                 | Text-to-speech    | No model to host; produces MP3 in a single call |
+Manual smoke test: upload a photo with a clear subject → click **Make My Story!** → confirm caption, 50–100-word story, working audio player, and working download links.
 
-If `roneneldan/TinyStories-33M` is unavailable on the Hub, the app logs
-the failure and silently switches to `distilgpt2`.
+Edge cases to check: corrupt image, oversized file, offline mode, removing the upload mid-story.
 
 ---
 
-## 🛡 Safety notes for ages 3–10
+## 🛡 Child-Safety Decisions
 
-* TinyStories emits short, plain-English prose using a child-safe
-  vocabulary. `distilgpt2` is filtered through a blocklist before it
-  is shown (`constants.py`).
-* If a generation ever slips past the blocklist, the app retries up
-  to two more times before surfacing a friendly message.
-* No data is persisted: uploaded images are processed in memory and
-  discarded when the session ends.
-
----
-
-## 🧪 Quick smoke test
-
-Upload any photo (a pet, a toy, a drawing) and click **Make My Story!**.
-Within ~10–30 s you should see:
-
-1. A short caption derived from the picture.
-2. A 3–5-sentence story built around that subject.
-3. An HTML5 audio player you can hit **▶** on, plus two download links.
+- TinyStories-first: primary model was trained on a children's corpus.
+- Word blocklist (violence, fear, substances, profanity, mature themes) in `constants.py`.
+- Emojis/quotes stripped before TTS for natural reading.
+- Friendly error messages — never a traceback.
+- No storage, no accounts, no tracking.

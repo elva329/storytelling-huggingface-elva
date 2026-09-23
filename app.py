@@ -965,7 +965,6 @@ def render_upload_page() -> tuple[Any, bool]:
         make_story = st.button(
             "Make My Story!",
             type="primary",
-            help="Tap to make a story from your picture ✨",
             key="make_story_btn",
         )
 

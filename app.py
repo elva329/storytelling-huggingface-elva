@@ -356,6 +356,10 @@ def text2story(caption: str) -> str:
 
     gen_kwargs: dict[str, Any] = {
         "max_new_tokens": 220,
+        # Disable the pipeline's default max_length=20, which triggers a
+        # harmless "both max_new_tokens and max_length are set" warning.
+        # We control output length via max_new_tokens above.
+        "max_length": None,
         "do_sample": True,
         "temperature": 0.7,
         "top_k": 50,
@@ -363,6 +367,7 @@ def text2story(caption: str) -> str:
         "repetition_penalty": 1.1,
         "no_repeat_ngram_size": 3,
     }
+
     if pad_id is not None:
         gen_kwargs["pad_token_id"] = pad_id
 
@@ -649,7 +654,7 @@ def _looks_offline(exc: BaseException) -> bool:
 
 # (icon, title, sub). The '&' in "Listen & save" is pre-escaped for HTML.
 _QUEST_STEPS: list[tuple[str, str, str]] = [
-    ("🎨", "Pick a picture",    "PNG · JPG · WEBP · up to 25 MB"),
+    ("🎨", "Pick a picture",    "PNG · JPG · WEBP · up to 5 MB"),
     ("✨", "Make my story",     "Tap the big pink button"),
     ("🎧", "Listen &amp; save", "Hear your story come alive"),
 ]
@@ -865,7 +870,7 @@ def render_upload_page() -> tuple[Any, UploadState, bool]:
         st.error(_ERR_BAD_IMAGE)
         return uploaded, UploadState.BAD_FILE, False
 
-    st.image(preview_image, use_container_width=True)
+    st.image(preview_image, width="stretch")
 
     # The button is locked out during the working phase by CSS keyed on
     # the `.progress-inline` loader (see components.css). We deliberately
